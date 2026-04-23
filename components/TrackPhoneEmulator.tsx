@@ -47,6 +47,7 @@ interface Props {
   onStepComplete?: (step: WorkflowStep) => void;
   onPackParentScanned?: () => void;
   onVerifyParentScanned?: () => void;
+  onPackQtySet?: (qty: number) => void;
   onScreenChange?: (screen: AppScreen) => void;
   onCommission?: (serials: string[]) => void;
 }
@@ -136,7 +137,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function TrackPhoneEmulator({ product, sscc, serials, commissionedSerials, onStepComplete, onPackParentScanned, onVerifyParentScanned, onScreenChange, onCommission }: Props) {
+export default function TrackPhoneEmulator({ product, sscc, serials, commissionedSerials, onStepComplete, onPackParentScanned, onVerifyParentScanned, onPackQtySet, onScreenChange, onCommission }: Props) {
   const [screen, setScreen] = useState<AppScreen>("home");
 
   // Commission state
@@ -625,7 +626,7 @@ export default function TrackPhoneEmulator({ product, sscc, serials, commissione
               <motion.button onMouseDown={e => e.preventDefault()} whileTap={{ scale: 0.97 }}
                 onClick={() => {
                   const q = parseInt(packQtyStr);
-                  if (q > 0) { setPackQty(q); setPackStep("scan-parent"); }
+                  if (q > 0) { setPackQty(q); setPackStep("scan-parent"); onPackQtySet?.(q); }
                 }}
                 disabled={!packQtyStr || parseInt(packQtyStr) < 1}
                 style={{

@@ -5,6 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import Barcode from "react-barcode";
 import Navbar from "@/components/Navbar";
 import TrackPhoneEmulator, { WorkflowStep } from "@/components/TrackPhoneEmulator";
+import ScannerDevice from "@/components/ScannerDevice";
 
 const COLOR = "#2D9D3A";
 
@@ -655,8 +656,8 @@ function LabelGenerationPhase({ onGenerate, onProceed, commissionedSerials }: {
         const selSgtin    = sgtinBatches.find(b => b.id === selectedSgtinId) ?? sgtinBatches[0];
         const sscc18      = selSscc.rows[0]?.sscc18 ?? "";
         const sgtinBatch  = selSgtin;
-        const sampleRows  = sgtinBatch.rows.slice(0, 3);
-        const serials     = sampleRows.map(r => r.serial);
+        const sampleRows  = sgtinBatch.rows.slice(0, 3);   // preview only
+        const serials     = sgtinBatch.rows.slice(0, 20).map(r => r.serial);
         const gtin14      = sampleRows[0]?.gtin14 ?? "";
         const gtinOption  = GTIN_OPTIONS.find(g => toGtin14(g.gtin) === gtin14);
         const gtinDisplay = gtinOption?.gtin ?? gtin14.replace(/^0+/, "");
@@ -759,6 +760,8 @@ export default function TrackDemo() {
   const [activeSerials, setActiveSerials] = useState<string[] | undefined>(undefined);
   const [completedSteps, setCompletedSteps] = useState<Set<WorkflowStep>>(new Set());
   const [scannerActive, setScannerActive]       = useState(false);
+  const [lastScanResult, setLastScanResult]     = useState<string>("");
+  const [activePackQty, setActivePackQty]       = useState(0);
   const [ssccScanned, setSsccScanned]           = useState(false);
   const [vrfParentScanned, setVrfParentScanned] = useState(false);
   const [activeScreen, setActiveScreen]         = useState<string>("home");
@@ -931,19 +934,42 @@ export default function TrackDemo() {
                               <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
                                 {ssccTitle[activeScreen] ?? "SSCC-18 — Pack / Case"}
                               </p>
-                              <div className="rounded-xl border border-gray-100 overflow-hidden" style={{ background: `${COLOR}04` }}>
-                                <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+                              <div className="rounded-xl border overflow-hidden" style={{
+                                background: `${COLOR}04`,
+                                borderColor: scannerActive ? "#ef444440" : "#f3f4f6",
+                                position: "relative",
+                                transition: "border-color 0.2s",
+                              }}>
+                                {/* Corner scan brackets */}
+                                {[["top-2 left-2","border-t-2 border-l-2"],["top-2 right-2","border-t-2 border-r-2"],["bottom-2 left-2","border-b-2 border-l-2"],["bottom-2 right-2","border-b-2 border-r-2"]].map(([pos, bdr], i) => (
+                                  <div key={i} className={`absolute ${pos} ${bdr} w-3 h-3`}
+                                    style={{ borderColor: scannerActive ? "#ef4444" : "#d1d5db", transition: "border-color 0.2s", zIndex: 3 }} />
+                                ))}
+                                {/* Red sweep overlay */}
+                                <AnimatePresence>
+                                  {scannerActive && (
+                                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                      style={{ position: "absolute", inset: 0, background: "rgba(239,68,68,0.05)", zIndex: 2, pointerEvents: "none" }}>
+                                      <motion.div
+                                        initial={{ top: 0 }} animate={{ top: "100%" }}
+                                        transition={{ duration: 0.45, ease: "linear" }}
+                                        style={{ position: "absolute", left: 0, right: 0, height: 3, background: "rgba(239,68,68,0.7)", boxShadow: "0 0 12px rgba(239,68,68,0.8)" }}
+                                      />
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                                <div className="flex items-center gap-2 px-4 pt-3 pb-1" style={{ position: "relative", zIndex: 4 }}>
                                   <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-black flex-shrink-0" style={{ background: COLOR }}>00</div>
                                   <span className="font-mono font-bold text-gray-900 text-sm">{activeSscc}</span>
                                 </div>
-                                <div className="flex justify-center px-4 pb-2 pt-1">
+                                <div className="flex justify-center px-4 pb-2 pt-1" style={{ position: "relative", zIndex: 4 }}>
                                   <Barcode
                                     value={`(00)${activeSscc}`}
                                     format="CODE128" width={1.4} height={52}
                                     displayValue={false} background="transparent" lineColor="#1a1a1a" margin={0}
                                   />
                                 </div>
-                                <p className="text-[9px] font-mono text-gray-400 text-center pb-3">(00){activeSscc}</p>
+                                <p className="text-[9px] font-mono text-gray-400 text-center pb-3" style={{ position: "relative", zIndex: 4 }}>(00){activeSscc}</p>
                               </div>
                             </motion.div>
                           ) : (
@@ -954,20 +980,27 @@ export default function TrackDemo() {
                                 {sgtinTitle[activeScreen] ?? "Unit Labels — SGTIN"}
                               </p>
                               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                                {(activeSerials ?? [activeProduct.serial]).map((serial, i) => {
-                                  const label = { ...activeProduct, serial };
-                                  return (
-                                    <div key={serial}>
-                                      <p style={{ fontSize: 9, fontWeight: 600, color: "#9ca3af", marginBottom: 4 }}>Label {i + 1}</p>
-                                      <ProductLabel
-                                        product={label}
-                                        qrValue={`(01)${toGtin14(label.gtin)}(21)${label.serial}`}
-                                        scanning={false}
-                                        compact
-                                      />
-                                    </div>
-                                  );
-                                })}
+                                {(() => {
+                                  const allSerials = activeSerials ?? [activeProduct.serial];
+                                  // In pack scan-children phase: limit to packQty; otherwise show all
+                                  const visibleCount = (activeScreen === "pack" && ssccScanned && activePackQty > 0)
+                                    ? Math.min(activePackQty, allSerials.length)
+                                    : allSerials.length;
+                                  return allSerials.slice(0, visibleCount).map((serial, i) => {
+                                    const label = { ...activeProduct, serial };
+                                    return (
+                                      <div key={serial}>
+                                        <p style={{ fontSize: 9, fontWeight: 600, color: "#9ca3af", marginBottom: 4 }}>Label {i + 1}</p>
+                                        <ProductLabel
+                                          product={label}
+                                          qrValue={`(01)${toGtin14(label.gtin)}(21)${label.serial}`}
+                                          scanning={scannerActive && i === 0}
+                                          compact
+                                        />
+                                      </div>
+                                    );
+                                  });
+                                })()}
                               </div>
                             </motion.div>
                           )}
@@ -977,93 +1010,25 @@ export default function TrackDemo() {
 
                     {/* Handheld scanner device */}
                     <div style={{ display: "flex", justifyContent: "center", paddingTop: 4 }}>
-                      <div style={{
-                        width: 210,
-                        background: "linear-gradient(175deg, #1e2d3d 0%, #0f1c2a 50%, #0a1520 100%)",
-                        borderRadius: "18px 18px 14px 14px",
-                        border: "1.5px solid #2a3a4d",
-                        boxShadow: "0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07), 4px 4px 0 #060e16",
-                        overflow: "hidden",
-                        position: "relative",
-                      }}>
-                        {/* Top brand bar */}
-                        <div style={{ background: "#0a1520", padding: "7px 14px", borderBottom: "1px solid #1a2a3a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <span style={{ fontSize: 7, fontWeight: 900, letterSpacing: 2, color: "#4a6080", textTransform: "uppercase" }}>Sproxil Pro</span>
-                          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                            <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#1e3a4a", border: "1px solid #2a4a5a" }} />
-                            <div style={{ width: 6, height: 6, borderRadius: "50%", background: scannerActive ? "#f59e0b" : "#22c55e", boxShadow: scannerActive ? "0 0 7px #f59e0b" : "0 0 7px #22c55e", transition: "all 0.3s" }} />
-                          </div>
-                        </div>
-
-                        {/* Scan aperture */}
-                        <div style={{ margin: "12px 14px 6px", background: "#050c14", borderRadius: 8, height: 62, border: "1.5px solid #162030", position: "relative", overflow: "hidden", boxShadow: "inset 0 3px 14px rgba(0,0,0,0.95)" }}>
-                          {/* Corner guides */}
-                          {[["top-1.5 left-1.5","border-t border-l"],["top-1.5 right-1.5","border-t border-r"],["bottom-1.5 left-1.5","border-b border-l"],["bottom-1.5 right-1.5","border-b border-r"]].map(([pos, bdr], i) => (
-                            <div key={i} className={`absolute ${pos} ${bdr} w-3 h-3`} style={{ borderColor: `${COLOR}60` }} />
-                          ))}
-                          {/* Idle barcode shimmer */}
-                          {!scannerActive && (
-                            <div style={{ position: "absolute", inset: "10px 16px", display: "flex", alignItems: "center", gap: 2 }}>
-                              {[4,7,3,6,4,8,3,5,4,7,3,6,5,8,3].map((h, i) => (
-                                <div key={i} style={{ flex: 1, height: `${h * 5}%`, background: "#1a2e20", borderRadius: 1 }} />
-                              ))}
-                            </div>
-                          )}
-                          {/* Laser sweep */}
-                          {scannerActive && (
-                            <motion.div
-                              initial={{ top: 5 }} animate={{ top: "calc(100% - 5px)" }}
-                              transition={{ duration: 0.38, ease: "linear" }}
-                              style={{ position: "absolute", left: 8, right: 8, height: 2, background: "rgba(239,68,68,0.95)", boxShadow: "0 0 14px 3px rgba(239,68,68,0.7)", borderRadius: 1 }}
-                            />
-                          )}
-                          <span style={{ position: "absolute", bottom: 3, right: 7, fontSize: 7, fontWeight: 800, letterSpacing: 1, color: scannerActive ? "#f59e0b" : "#22c55e" }}>
-                            {scannerActive ? "SCANNING" : "READY"}
-                          </span>
-                        </div>
-
-                        {/* Model + aux buttons row */}
-                        <div style={{ padding: "4px 14px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <span style={{ fontSize: 7, color: "#2a3a4d", fontWeight: 600, letterSpacing: 0.5 }}>SPX-9000 · 2D</span>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            {["CLR","ENT"].map(lbl => (
-                              <div key={lbl} style={{ padding: "2px 6px", borderRadius: 3, background: "#0f1c2a", border: "1px solid #1e2d3d" }}>
-                                <span style={{ fontSize: 6, color: "#3a5060", fontWeight: 700 }}>{lbl}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Grip ridges */}
-                        <div style={{ margin: "0 14px", height: 8, borderRadius: 4, background: "repeating-linear-gradient(90deg, #0a1520 0px, #0a1520 5px, #0f1c2a 5px, #0f1c2a 10px)", border: "1px solid #1a2a3a", marginBottom: 10 }} />
-
-                        {/* Trigger button */}
-                        <div style={{ padding: "0 14px 14px" }}>
-                          <motion.button
-                            onMouseDown={e => e.preventDefault()}
-                            onClick={() => {
-                              if (scannerActive) return;
-                              setScannerActive(true);
-                              setTimeout(() => { simulateScan(); setScannerActive(false); }, 420);
-                            }}
-                            whileTap={scannerActive ? {} : { scale: 0.96, y: 1 }}
-                            style={{
-                              width: "100%", padding: "12px 0", display: "block",
-                              background: scannerActive
-                                ? "linear-gradient(to bottom, #374151, #2d3748)"
-                                : `linear-gradient(to bottom, ${COLOR}, #1e7429)`,
-                              color: "white", border: "none",
-                              borderRadius: 10,
-                              borderBottom: scannerActive ? "none" : "3px solid #155a1e",
-                              fontWeight: 900, fontSize: 13, cursor: scannerActive ? "not-allowed" : "pointer",
-                              letterSpacing: 2, textTransform: "uppercase",
-                              boxShadow: scannerActive ? "none" : `0 4px 18px ${COLOR}60, inset 0 1px 0 rgba(255,255,255,0.15)`,
-                              transition: "all 0.15s",
-                            }}>
-                            {scannerActive ? "● Scanning..." : "▶  Scan"}
-                          </motion.button>
-                        </div>
-                      </div>
+                      <ScannerDevice
+                        scanning={scannerActive}
+                        lastScanned={lastScanResult || undefined}
+                        onScan={() => {
+                          if (scannerActive) return;
+                          setScannerActive(true);
+                          setTimeout(() => {
+                            simulateScan();
+                            setScannerActive(false);
+                            // Derive what was just scanned for the LCD "done" state
+                            const SSCC_SCREENS = ["ship", "receive", "unpack", "view", "pack", "verify"];
+                            const isSSCC = SSCC_SCREENS.includes(activeScreen) && !ssccScanned && !vrfParentScanned;
+                            setLastScanResult(isSSCC
+                              ? (activeSscc ?? "")
+                              : (activeSerials?.[0] ?? activeProduct.serial)
+                            );
+                          }, 420);
+                        }}
+                      />
                     </div>
                   </div>
 
@@ -1084,10 +1049,11 @@ export default function TrackDemo() {
                       serials={activeSerials}
                       onStepComplete={handleStepComplete}
                       onPackParentScanned={() => setSsccScanned(true)}
+                      onPackQtySet={qty => setActivePackQty(qty)}
                       onVerifyParentScanned={() => setVrfParentScanned(true)}
                       onScreenChange={s => {
                         setActiveScreen(s);
-                        if (s !== "pack")   setSsccScanned(false);
+                        if (s !== "pack")   { setSsccScanned(false); setActivePackQty(0); }
                         if (s !== "verify") setVrfParentScanned(false);
                       }}
                       commissionedSerials={commissionedSerials}
