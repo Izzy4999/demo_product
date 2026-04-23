@@ -19,7 +19,7 @@ type AppScreen = "home" | WorkflowStep;
 type PackStep = "set-qty" | "scan-parent" | "scan-children" | "done";
 type SimpleStep = "scan" | "confirm" | "done";
 
-const MOCK_SSCC = "00359002329230001";
+const DEFAULT_SSCC = "00359002329230001";
 const LOCATIONS = [
   "Hub Dispatch — Ilupeju, Lagos",
   "Distributor — Onitsha, Anambra",
@@ -41,7 +41,14 @@ const MENU: { id: WorkflowStep; label: string; icon: string }[] = [
 
 interface Props {
   product: TrackProduct;
+  sscc?: string;
+  serials?: string[];
+  commissionedSerials?: string[];
   onStepComplete?: (step: WorkflowStep) => void;
+  onPackParentScanned?: () => void;
+  onVerifyParentScanned?: () => void;
+  onScreenChange?: (screen: AppScreen) => void;
+  onCommission?: (serials: string[]) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -129,13 +136,14 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
+export default function TrackPhoneEmulator({ product, sscc, serials, commissionedSerials, onStepComplete, onPackParentScanned, onVerifyParentScanned, onScreenChange, onCommission }: Props) {
   const [screen, setScreen] = useState<AppScreen>("home");
 
   // Commission state
-  const [commMode, setCommMode]     = useState<"automatic" | "batch">("automatic");
-  const [commItems, setCommItems]   = useState<string[]>([]);
-  const [commDone, setCommDone]     = useState(false);
+  const [commMode, setCommMode]       = useState<"automatic" | "batch">("automatic");
+  const [commItems, setCommItems]     = useState<string[]>([]);
+  const [commBatchQueue, setCommBatchQueue] = useState<string[]>([]);
+  const [commDone, setCommDone]       = useState(false);
 
   // Pack state
   const [packStep, setPackStep]     = useState<PackStep>("set-qty");
@@ -180,10 +188,16 @@ export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
   const lastKeyTime = useRef(0);
   const contentRef  = useRef<HTMLDivElement>(null);
 
-  // Children list — from pack result or mock
-  const childrenPool = packResult?.children.length
-    ? packResult.children
+  const activeSSCC = sscc || DEFAULT_SSCC;
+  const commSet = new Set(commissionedSerials ?? []);
+  const rawPool = serials?.length
+    ? serials
     : [product.serial, `SN-0000090-BC`, `SN-0000091-CD`, `SN-0000092-DE`, `SN-0000093-EF`];
+  // Filter out already-commissioned labels — they cannot be re-commissioned
+  const activeSerialsPool = rawPool.filter(s => !commSet.has(s));
+
+  // Children list — from pack result or selected serials
+  const childrenPool = packResult?.children.length ? packResult.children : activeSerialsPool;
 
   // ── Handle incoming scan ───────────────────────────────────────────────────
   const handleScan = useCallback((raw: string) => {
@@ -193,21 +207,39 @@ export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
     switch (screen) {
       case "commission": {
         if (commDone) return;
-        const n = commItems.length + 1;
-        const serial = `SN-${String(n + 88).padStart(7, "0")}-${String.fromCharCode(65 + (n % 26))}${String.fromCharCode(65 + ((n + 2) % 26))}`;
-        setCommItems(prev => [...prev, serial]);
+        const nextIdx = commMode === "automatic"
+          ? commItems.length
+          : commItems.length + commBatchQueue.length;
+        const next = activeSerialsPool[nextIdx];
+        if (!next) return;
+        if (commMode === "automatic") {
+          // Each scan immediately commits
+          setCommItems(prev => {
+            const upd = [...prev, next];
+            if (upd.length >= activeSerialsPool.length) {
+              setCommDone(true);
+              onStepComplete?.("commission");
+              onCommission?.(upd);
+            }
+            return upd;
+          });
+        } else {
+          // Batch: accumulate in queue until Submit
+          setCommBatchQueue(prev => [...prev, next]);
+        }
         break;
       }
       case "pack": {
         if (packStep === "scan-parent") {
-          setPackParent(MOCK_SSCC);
+          setPackParent(activeSSCC);
           setPackStep("scan-children");
+          onPackParentScanned?.();
         } else if (packStep === "scan-children") {
           const next = childrenPool[packChildren.length] ?? `SN-${Date.now()}`;
           setPackChildren(prev => {
             const upd = [...prev, next];
             if (upd.length >= packQty) {
-              const result = { parent: MOCK_SSCC, children: upd };
+              const result = { parent: activeSSCC, children: upd };
               setPackResult(result);
               setPackStep("done");
               onStepComplete?.("pack");
@@ -219,21 +251,21 @@ export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
       }
       case "ship": {
         if (shipStep === "scan") {
-          setShipPackage(MOCK_SSCC);
+          setShipPackage(activeSSCC);
           setShipStep("select");
         }
         break;
       }
       case "receive": {
         if (rcvStep === "scan") {
-          setRcvPackage(MOCK_SSCC);
+          setRcvPackage(activeSSCC);
           setRcvStep("confirm");
         }
         break;
       }
       case "unpack": {
         if (upkStep === "scan") {
-          setUpkPackage(MOCK_SSCC);
+          setUpkPackage(activeSSCC);
           setUpkStep("confirm");
         }
         break;
@@ -253,20 +285,21 @@ export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
       }
       case "decommission": {
         if (dcmStep === "scan") {
-          setDcmItem(product.serial);
+          setDcmItem(activeSerialsPool[0] ?? product.serial);
           setDcmStep("reason");
         }
         break;
       }
       case "view": {
-        setViewParent(MOCK_SSCC);
+        setViewParent(activeSSCC);
         break;
       }
       case "verify": {
         if (vrfStep === "scan-parent") {
-          setVrfParent(MOCK_SSCC);
+          setVrfParent(activeSSCC);
           setVrfExpected(childrenPool);
           setVrfStep("scan-children");
+          onVerifyParentScanned?.();
         } else if (vrfStep === "scan-children") {
           const next = vrfExpected[vrfDone.length];
           if (!next) return;
@@ -287,7 +320,7 @@ export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
     setTimeout(() => {
       if (contentRef.current) contentRef.current.scrollTop = contentRef.current.scrollHeight;
     }, 50);
-  }, [screen, commItems, commDone, packStep, packChildren, packQty, childrenPool, shipStep, rcvStep, upkStep, dspItems, dspDone, dcmStep, vrfStep, vrfExpected, vrfDone, product, onStepComplete]);
+  }, [screen, commMode, commItems, commBatchQueue, commDone, activeSerialsPool, packStep, packChildren, packQty, childrenPool, shipStep, rcvStep, upkStep, dspItems, dspDone, dcmStep, vrfStep, vrfExpected, vrfDone, product, onStepComplete, onPackParentScanned, onVerifyParentScanned, onCommission]);
 
   // Physical scanner listener
   useEffect(() => {
@@ -309,7 +342,7 @@ export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
 
   // Navigate to screen (reset state)
   const go = (s: AppScreen) => {
-    if (s === "commission") { setCommItems([]); setCommDone(false); setCommMode("automatic"); }
+    if (s === "commission") { setCommItems([]); setCommBatchQueue([]); setCommDone(false); setCommMode("automatic"); }
     if (s === "pack")       { setPackStep("set-qty"); setPackQty(0); setPackQtyStr(""); setPackParent(""); setPackChildren([]); }
     if (s === "ship")       { setShipStep("scan"); setShipPackage(""); setShipDest(""); }
     if (s === "receive")    { setRcvStep("scan"); setRcvPackage(""); }
@@ -319,9 +352,10 @@ export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
     if (s === "view")       { setViewParent(null); }
     if (s === "verify")     { setVrfStep("scan-parent"); setVrfParent(""); setVrfExpected([]); setVrfDone([]); }
     setScreen(s);
+    onScreenChange?.(s);
   };
 
-  const goHome = () => setScreen("home");
+  const goHome = () => { setScreen("home"); onScreenChange?.("home"); };
 
   // ── Screen renderers ───────────────────────────────────────────────────────
 
@@ -377,80 +411,183 @@ export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
     </div>
   );
 
-  const renderCommission = () => (
-    <div>
-      <AppHeader title="Commission Package" onBack={goHome} />
-      <div style={{ padding: "0 16px 16px" }}>
-        {/* Mode tabs */}
-        <div style={{ display: "flex", border: "1.5px solid #e5e7eb", borderRadius: 10, overflow: "hidden", marginTop: 14 }}>
-          {(["automatic", "batch"] as const).map(m => (
-            <button key={m} onMouseDown={e => e.preventDefault()} onClick={() => setCommMode(m)}
-              style={{
-                flex: 1, padding: "10px 0", border: "none", cursor: "pointer",
-                background: commMode === m ? APP_RED : "white",
-                color: commMode === m ? "white" : "#6b7280",
-                fontWeight: 700, fontSize: 13,
-              }}>
-              {m.charAt(0).toUpperCase() + m.slice(1)}
-            </button>
-          ))}
-        </div>
+  const renderCommission = () => {
+    // Batch submit handler
+    const handleBatchSubmit = () => {
+      const all = [...commItems, ...commBatchQueue];
+      setCommItems(all);
+      setCommBatchQueue([]);
+      if (all.length >= activeSerialsPool.length) {
+        setCommDone(true);
+        onStepComplete?.("commission");
+        onCommission?.(all);
+      } else {
+        // Partial batch uploaded — still persist what was done
+        onCommission?.(all);
+      }
+    };
 
-        {/* Scan illustration */}
-        <div style={{ margin: "14px 0", background: "#f9fafb", borderRadius: 10, padding: "14px", border: "1px solid #e5e7eb", textAlign: "center" }}>
-          <p style={{ margin: 0, fontSize: 28 }}>📷</p>
-          <p style={{ margin: "6px 0 0", fontSize: 10, color: "#9ca3af" }}>
-            {commMode === "automatic"
-              ? `Please click on the "scan barcode" field first, then start scanning labels to be commissioned.`
-              : `Please click on the "scan barcode" field first, then start scanning labels. Click Submit when done.`}
-          </p>
-        </div>
+    const lastAutoScanned  = commItems[commItems.length - 1] ?? "";
+    const lastBatchScanned = commBatchQueue[commBatchQueue.length - 1] ?? "";
+    const totalQueued      = commBatchQueue.length;
+    const allDone          = commItems.length >= activeSerialsPool.length;
+    const batchAllDone     = (commItems.length + commBatchQueue.length) >= activeSerialsPool.length;
+    // All labels in this batch were already commissioned in a prior session
+    const allPreComm = activeSerialsPool.length === 0 && rawPool.length > 0;
 
-        <p style={{ margin: "0 0 6px", fontWeight: 800, fontSize: 14, color: "#111" }}>Scanning Details</p>
+    return (
+      <div>
+        <AppHeader title="Commission Labels" onBack={goHome} />
+        <div style={{ padding: "0 16px 16px" }}>
 
-        <FieldLabel>Quantity</FieldLabel>
-        <ScanField value={commItems.length > 0 ? String(commItems.length) : "0"} placeholder="0" />
-
-        <FieldLabel>Last Barcode</FieldLabel>
-        <ScanField value={commItems[commItems.length - 1] ?? ""} />
-
-        {commItems.length > 0 && (
-          <div style={{ marginTop: 10, maxHeight: 100, overflowY: "auto" }}>
-            {[...commItems].reverse().map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
-                <span style={{ color: "#16a34a", fontSize: 11 }}>✓</span>
-                <span style={{ fontSize: 10, fontFamily: "monospace", color: "#374151" }}>{s}</span>
-              </div>
+          {/* Mode tabs */}
+          <div style={{ display: "flex", border: "1.5px solid #e5e7eb", borderRadius: 10, overflow: "hidden", marginTop: 14 }}>
+            {(["automatic", "batch"] as const).map(m => (
+              <button key={m} onMouseDown={e => e.preventDefault()}
+                onClick={() => { setCommMode(m); setCommBatchQueue([]); }}
+                style={{
+                  flex: 1, padding: "10px 0", border: "none", cursor: "pointer",
+                  background: commMode === m ? APP_RED : "white",
+                  color: commMode === m ? "white" : "#6b7280",
+                  fontWeight: 700, fontSize: 13,
+                }}>
+                {m.charAt(0).toUpperCase() + m.slice(1)}
+              </button>
             ))}
           </div>
-        )}
 
-        {!commDone && (
-          <ScanBtn onScan={() => handleScan("SCAN")} label="Scan Label" />
-        )}
+          {/* Illustration */}
+          <div style={{ margin: "12px 0 10px", background: "#f9fafb", borderRadius: 10, padding: "10px", border: "1px solid #e5e7eb", textAlign: "center" }}>
+            <p style={{ margin: 0, fontSize: 22 }}>📷</p>
+            <p style={{ margin: "4px 0 0", fontSize: 10, color: "#9ca3af" }}>
+              {commMode === "automatic"
+                ? "Each scan commissions the label immediately."
+                : "Scan all labels first, then tap Submit to upload in one batch."}
+            </p>
+          </div>
 
-        {commItems.length > 0 && !commDone && (
-          <motion.button onMouseDown={e => e.preventDefault()}
-            onClick={() => { setCommDone(true); onStepComplete?.("commission"); }} whileTap={{ scale: 0.97 }}
-            style={{
-              width: "100%", padding: "11px 0", borderRadius: 8, marginTop: 8,
-              background: "#16a34a", color: "white", fontWeight: 700, fontSize: 13,
-              border: "none", cursor: "pointer",
-            }}>
-            Submit ({commItems.length} label{commItems.length !== 1 ? "s" : ""})
-          </motion.button>
-        )}
+          {/* All labels already commissioned — block re-commission */}
+          {allPreComm && (
+            <div style={{ marginTop: 4, background: "#f0fdf4", borderRadius: 10, padding: "14px 16px", border: "1.5px solid #bbf7d0" }}>
+              <p style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 13, color: "#15803d" }}>✅ Already Commissioned</p>
+              <p style={{ margin: 0, fontSize: 11, color: "#16a34a" }}>
+                All labels in this batch were commissioned in a previous session. Select a different batch to commission new labels.
+              </p>
+            </div>
+          )}
 
-        {commDone && (
-          <DoneCard title={`${commItems.length} label${commItems.length !== 1 ? "s" : ""} commissioned`} onDone={goHome}>
-            <InfoRow label="Client" value={product.client} />
-            <InfoRow label="Product" value={product.name.slice(0, 22)} />
-            <InfoRow label="Batch" value={product.batch} />
-          </DoneCard>
-        )}
+          <AnimatePresence mode="wait">
+
+            {/* ── AUTOMATIC ─────────────────────────────────────────── */}
+            {commMode === "automatic" && !commDone && (
+              <motion.div key="auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <FieldLabel>Scan Label (SGTIN)</FieldLabel>
+                <ScanField value={lastAutoScanned} />
+
+                {/* Progress bar */}
+                <div style={{ margin: "10px 0 6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600 }}>Commissioned</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: APP_RED }}>{commItems.length} / {activeSerialsPool.length}</span>
+                  </div>
+                  <div style={{ height: 5, background: "#f3f4f6", borderRadius: 9999, overflow: "hidden" }}>
+                    <motion.div
+                      animate={{ width: `${(commItems.length / activeSerialsPool.length) * 100}%` }}
+                      style={{ height: "100%", background: APP_RED, borderRadius: 9999, transition: "width 0.3s" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Recently scanned */}
+                {commItems.length > 0 && (
+                  <div style={{ marginBottom: 6, maxHeight: 80, overflowY: "auto" }}>
+                    {[...commItems].reverse().slice(0, 4).map((c, i) => (
+                      <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", padding: "3px 0", borderBottom: "1px solid #f9fafb" }}>
+                        <span style={{ color: "#16a34a", fontSize: 11 }}>✓</span>
+                        <span style={{ fontSize: 10, fontFamily: "monospace", color: "#374151", flex: 1 }}>{c}</span>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: "#16a34a" }}>OK</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <ScanBtn
+                  onScan={() => handleScan("SCAN")}
+                  label={`Scan Label ${commItems.length + 1}`}
+                  disabled={allDone}
+                />
+              </motion.div>
+            )}
+
+            {/* ── BATCH ─────────────────────────────────────────────── */}
+            {commMode === "batch" && !commDone && (
+              <motion.div key="batch" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <FieldLabel>Scan Label (SGTIN)</FieldLabel>
+                <ScanField value={lastBatchScanned} />
+
+                {/* Queue badge */}
+                {totalQueued > 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, background: "#fff7ed", borderRadius: 8, padding: "8px 12px", border: "1px solid #fed7aa" }}>
+                    <span style={{ fontSize: 11 }}>🕓</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#92400e" }}>
+                      {totalQueued} label{totalQueued !== 1 ? "s" : ""} queued — not yet uploaded
+                    </span>
+                  </div>
+                )}
+
+                {/* Queued list */}
+                {totalQueued > 0 && (
+                  <div style={{ marginTop: 8, maxHeight: 100, overflowY: "auto" }}>
+                    {[...commBatchQueue].reverse().map((c, i) => (
+                      <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", padding: "3px 0", borderBottom: "1px solid #f9fafb" }}>
+                        <span style={{ color: "#d97706", fontSize: 11 }}>○</span>
+                        <span style={{ fontSize: 10, fontFamily: "monospace", color: "#374151", flex: 1 }}>{c}</span>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: "#d97706" }}>QUEUED</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <ScanBtn
+                  onScan={() => handleScan("SCAN")}
+                  label={totalQueued === 0 ? "Scan Label" : `Scan Next (${totalQueued} queued)`}
+                  disabled={batchAllDone}
+                />
+
+                {/* Submit button */}
+                <motion.button
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={handleBatchSubmit}
+                  disabled={totalQueued === 0}
+                  whileTap={totalQueued === 0 ? {} : { scale: 0.97 }}
+                  style={{
+                    width: "100%", padding: "11px 0", borderRadius: 8, marginTop: 8,
+                    background: totalQueued === 0 ? "#d1d5db" : "#16a34a",
+                    color: "white", fontWeight: 700, fontSize: 13, border: "none",
+                    cursor: totalQueued === 0 ? "not-allowed" : "pointer",
+                  }}>
+                  {totalQueued === 0 ? "Scan labels first" : `✓ Submit ${totalQueued} label${totalQueued !== 1 ? "s" : ""}`}
+                </motion.button>
+              </motion.div>
+            )}
+
+            {/* ── DONE ──────────────────────────────────────────────── */}
+            {commDone && (
+              <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <DoneCard title={`${commItems.length} label${commItems.length !== 1 ? "s" : ""} commissioned`} onDone={goHome}>
+                  <InfoRow label="Client" value={product.client} />
+                  <InfoRow label="Product" value={product.name.slice(0, 22)} />
+                  <InfoRow label="Batch" value={product.batch} />
+                  <InfoRow label="Mode" value={commMode.charAt(0).toUpperCase() + commMode.slice(1)} />
+                </DoneCard>
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderPack = () => (
     <div>
@@ -516,25 +653,52 @@ export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
           {/* Step 3: Scan children */}
           {packStep === "scan-children" && (
             <motion.div key="children" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <div style={{ background: `${APP_RED}10`, borderRadius: 8, padding: "8px 12px", marginTop: 12, border: `1px solid ${APP_RED}30` }}>
+              {/* Parent confirmed banner */}
+              <div style={{ marginTop: 12, background: "#f0fdf4", borderRadius: 8, padding: "8px 12px", border: "1.5px solid #bbf7d0", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11 }}>✅</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 9, color: "#16a34a", fontWeight: 700 }}>PARENT SCANNED</p>
+                  <p style={{ margin: 0, fontSize: 10, fontFamily: "monospace", color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{packParent}</p>
+                </div>
+              </div>
+
+              {/* Progress pill */}
+              <div style={{ background: `${APP_RED}10`, borderRadius: 8, padding: "8px 12px", marginTop: 8, border: `1px solid ${APP_RED}30` }}>
                 <p style={{ margin: 0, fontSize: 11, color: APP_RED, fontWeight: 700 }}>
                   Scan {packQty - packChildren.length} more item{packQty - packChildren.length !== 1 ? "s" : ""}
                 </p>
               </div>
-              <FieldLabel>Parent</FieldLabel>
-              <ScanField value={packParent} />
-              <FieldLabel>Scan Child ({packChildren.length}/{packQty})</FieldLabel>
-              <ScanField value={packChildren[packChildren.length - 1] ?? ""} />
-              {packChildren.length > 0 && (
-                <div style={{ marginTop: 8, maxHeight: 90, overflowY: "auto" }}>
-                  {[...packChildren].reverse().map((c, i) => (
-                    <div key={i} style={{ display: "flex", gap: 6, padding: "2px 0" }}>
-                      <span style={{ color: "#16a34a", fontSize: 11 }}>✓</span>
-                      <span style={{ fontSize: 10, fontFamily: "monospace", color: "#374151" }}>{c}</span>
+
+              {/* Children checklist */}
+              <p style={{ margin: "10px 0 6px", fontSize: 11, fontWeight: 700, color: "#374151" }}>Expected Children ({packChildren.length}/{packQty})</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {childrenPool.slice(0, packQty).map((serial, i) => {
+                  const done = i < packChildren.length;
+                  const isNext = i === packChildren.length;
+                  return (
+                    <div key={serial} style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "7px 10px", borderRadius: 8,
+                      background: done ? "#f0fdf4" : isNext ? "#fff7ed" : "#f9fafb",
+                      border: `1.5px solid ${done ? "#bbf7d0" : isNext ? "#fed7aa" : "#e5e7eb"}`,
+                      transition: "all 0.2s",
+                    }}>
+                      <span style={{ fontSize: 11, flexShrink: 0 }}>
+                        {done ? "✅" : isNext ? "👉" : "⬜"}
+                      </span>
+                      <span style={{
+                        fontSize: 10, fontFamily: "monospace", flex: 1,
+                        color: done ? "#15803d" : isNext ? "#92400e" : "#9ca3af",
+                        fontWeight: done || isNext ? 700 : 400,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>{serial}</span>
+                      {done && <span style={{ fontSize: 8, fontWeight: 700, color: "#16a34a", flexShrink: 0 }}>PACKED</span>}
+                      {isNext && <span style={{ fontSize: 8, fontWeight: 700, color: "#d97706", flexShrink: 0 }}>SCAN</span>}
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
+
               <ScanBtn onScan={() => handleScan("CHILD")} label="Scan Child Item" />
             </motion.div>
           )}
@@ -916,56 +1080,53 @@ export default function TrackPhoneEmulator({ product, onStepComplete }: Props) {
 
   // ── Phone frame ────────────────────────────────────────────────────────────
   return (
-    <div style={{ position: "relative", width: 295 }}>
-      {/* Side buttons */}
-      {[{ top: 80, h: 32 }, { top: 124, h: 56 }, { top: 188, h: 56 }].map((b, i) => (
-        <div key={i} style={{
-          position: "absolute", left: -6, top: b.top, width: 4, height: b.h,
-          background: "#2a2a2a", borderRadius: "3px 0 0 3px",
-        }} />
-      ))}
-      <div style={{
-        position: "absolute", right: -6, top: 110, width: 4, height: 70,
-        background: "#2a2a2a", borderRadius: "0 3px 3px 0",
-      }} />
+    <div style={{ position: "relative" }}>
+      {/* Side buttons — left (volume) */}
+      <div style={{ position: "absolute", left: -3, top: 100, width: 3, height: 30, background: "#2a2a2a", borderRadius: "3px 0 0 3px" }} />
+      <div style={{ position: "absolute", left: -3, top: 140, width: 3, height: 30, background: "#2a2a2a", borderRadius: "3px 0 0 3px" }} />
+      {/* Side button — right (power) */}
+      <div style={{ position: "absolute", right: -3, top: 120, width: 3, height: 48, background: "#2a2a2a", borderRadius: "0 3px 3px 0" }} />
 
       {/* Phone body */}
       <div style={{
-        background: "#1a1a1d", borderRadius: 44, padding: "14px 8px",
-        boxShadow: "0 0 0 3px #1a1a1a, 0 0 0 8px #2d2d2d, 0 30px 80px rgba(0,0,0,0.45)",
+        position: "relative",
+        width: 300,
+        height: 634,
+        borderRadius: 46,
+        background: APP_DARK,
+        boxShadow: "0 0 0 2px #3a3a3a, 0 0 0 6px #1a1a1a, 0 32px 80px rgba(0,0,0,0.55)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        flexShrink: 0,
       }}>
-        {/* Notch */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
-          <div style={{ width: 80, height: 22, background: "#0a0a0a", borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            <div style={{ width: 6, height: 6, borderRadius: 9999, background: "#2a2a2a" }} />
-            <div style={{ width: 10, height: 10, borderRadius: 9999, background: "#1a1a1a", border: "1px solid #2a2a2a" }} />
+        {/* Status bar */}
+        <div style={{ background: APP_DARK, padding: "10px 20px 6px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0, zIndex: 10 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "white" }}>9:41</span>
+          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+            <svg width={13} height={9} viewBox="0 0 24 16" fill="none"><rect x="1" y="1" width="18" height="14" rx="3" stroke="white" strokeWidth={1.5} /><rect x="3" y="3" width="12" height="10" rx={1.5} fill="white" /><path d="M20 6v4a2 2 0 0 0 0-4z" fill="white" /></svg>
           </div>
         </div>
 
-        {/* Screen */}
-        <div style={{ background: "#f5f5f5", borderRadius: 28, overflow: "hidden", height: 560, display: "flex", flexDirection: "column" }}>
-          {/* Status bar */}
-          <div style={{ background: "white", padding: "6px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#111" }}>9:41</span>
-            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-              <svg width={12} height={10} viewBox="0 0 24 24" fill="#111"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01" stroke="#111" strokeWidth={1.5} strokeLinecap="round" fill="none" /></svg>
-              <svg width={14} height={10} viewBox="0 0 24 16" fill="#111"><rect x="1" y="1" width="18" height="14" rx="3" stroke="#111" strokeWidth={1.5} fill="none" /><rect x="3" y="3" width="12" height="10" rx={1.5} fill="#111" /><path d="M20 6v4a2 2 0 0 0 0-4z" fill="#111" /></svg>
-            </div>
-          </div>
+        {/* Notch overlay */}
+        <div style={{
+          position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+          width: 108, height: 30, background: "#000",
+          borderBottomLeftRadius: 18, borderBottomRightRadius: 18, zIndex: 50,
+        }} />
 
-          {/* App content */}
-          <div ref={contentRef} style={{ flex: 1, overflowY: "auto", background: "#f5f5f5" }}>
-            <AnimatePresence mode="wait">
-              <motion.div key={screen} initial={{ opacity: 0, x: screen === "home" ? -10 : 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-                {renderScreen()}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+        {/* App content */}
+        <div ref={contentRef} style={{ flex: 1, overflowY: "auto", background: "#f5f5f5" }}>
+          <AnimatePresence mode="wait">
+            <motion.div key={screen} initial={{ opacity: 0, x: screen === "home" ? -10 : 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              {renderScreen()}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* Home bar */}
-        <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
-          <div style={{ width: 90, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 9999 }} />
+        <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 14px", background: "white", flexShrink: 0 }}>
+          <div style={{ width: 100, height: 4, background: "#d1d5db", borderRadius: 9999 }} />
         </div>
       </div>
     </div>
