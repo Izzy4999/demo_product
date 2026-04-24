@@ -9,10 +9,10 @@ import NarratorBox from "@/components/NarratorBox";
 
 /* ─── Phase data ──────────────────────────────────────────────── */
 const phases = [
-  { id: 1, label: "Authentication", tag: "Track + Verify", color: "#00B69B" },
-  { id: 2, label: "Engagement", tag: "Promo", color: "#E85D04" },
-  { id: 3, label: "Loyalty", tag: "Loyalty", color: "#7B2FBE" },
-  { id: 4, label: "Insights", tag: "Survey", color: "#C84B31" },
+  { id: 1, label: "Authentication", tag: "Track + Verify", color: "#BE0303" },
+  { id: 2, label: "Engagement", tag: "Promo", color: "#BE0303" },
+  { id: 3, label: "Loyalty", tag: "Loyalty", color: "#BE0303" },
+  { id: 4, label: "Insights", tag: "Survey", color: "#BE0303" },
 ];
 
 const verifyMessages = [
@@ -40,18 +40,18 @@ const promoMessages = [
 
 const supplySteps = [
   { label: "Factory (Lagos)", color: "#0D1B2A" },
-  { label: "Distributor", color: "#2D9D3A" },
-  { label: "Retail Scan", color: "#00B69B" },
+  { label: "Distributor", color: "#BE0303" },
+  { label: "Retail Scan", color: "#BE0303" },
   { label: "Consumer Verifies", color: "#BE0303" },
-  { label: "Genuine ✓", color: "#E85D04" },
+  { label: "Genuine ✓", color: "#BE0303" },
 ];
 
 const loyaltySteps = [
   { label: "Carton Packed", color: "#0D1B2A" },
-  { label: "Coupon Included", color: "#7B2FBE" },
-  { label: "Retailer Scratches", color: "#00B69B" },
+  { label: "Coupon Included", color: "#BE0303" },
+  { label: "Retailer Scratches", color: "#BE0303" },
   { label: "Points Earned", color: "#BE0303" },
-  { label: "Profile Built", color: "#2D9D3A" },
+  { label: "Profile Built", color: "#BE0303" },
 ];
 
 /* ─── Survey component ────────────────────────────────────────── */
@@ -109,7 +109,7 @@ function SurveyFlow({ onComplete }: { onComplete: () => void }) {
           <div
             key={i}
             className="h-1.5 flex-1 rounded-full transition-colors"
-            style={{ background: i <= step ? "#C84B31" : "#e5e7eb" }}
+            style={{ background: i <= step ? "#BE0303" : "#e5e7eb" }}
           />
         ))}
       </div>
@@ -128,7 +128,7 @@ function SurveyFlow({ onComplete }: { onComplete: () => void }) {
               <button
                 key={opt}
                 onClick={() => pick(opt)}
-                className="border-2 border-gray-200 rounded-xl py-3 px-4 text-sm font-medium text-gray-700 hover:border-[#C84B31] hover:bg-[#C84B31]/5 hover:text-[#C84B31] transition-all cursor-pointer"
+                className="border-2 border-gray-200 rounded-xl py-3 px-4 text-sm font-medium text-gray-700 hover:border-[#BE0303] hover:bg-[#BE0303]/5 hover:text-[#BE0303] transition-all cursor-pointer"
               >
                 {opt}
               </button>
@@ -333,8 +333,8 @@ function MiniDashboard({ show }: { show: boolean }) {
           <p className="text-xs text-gray-400 uppercase tracking-widest mb-3 font-semibold">Live Campaign Dashboard</p>
           <div className="grid grid-cols-3 gap-3 mb-4">
             {[
-              { label: "Total Today", value: count.toLocaleString(), color: "#00B69B" },
-              { label: "Winners Sent", value: "312", color: "#E85D04" },
+              { label: "Total Today", value: count.toLocaleString(), color: "#BE0303" },
+              { label: "Winners Sent", value: "312", color: "#BE0303" },
               { label: "Flagged", value: "49", color: "#BE0303" },
             ].map((s) => (
               <div key={s.label} className="bg-white/5 rounded-xl p-3 text-center">
@@ -425,7 +425,7 @@ export default function StoryPage() {
               <p className="text-xs text-gray-400 mb-2 font-semibold">Characters</p>
               <div className="space-y-2 text-xs text-gray-600">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-[#2D9D3A] rounded-full flex items-center justify-center text-white font-bold text-[10px]">EO</div>
+                  <div className="w-7 h-7 bg-[#BE0303] rounded-full flex items-center justify-center text-white font-bold text-[10px]">EO</div>
                   <div><p className="font-semibold">Emeka Okafor</p><p className="text-gray-400">Retailer · Aba</p></div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -452,10 +452,10 @@ export default function StoryPage() {
               >
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-[#00B69B] flex items-center justify-center text-white font-black">1</div>
+                    <div className="w-10 h-10 rounded-xl bg-[#BE0303] flex items-center justify-center text-white font-black">1</div>
                     <div>
                       <h2 className="font-black text-gray-900 text-xl">Authentication</h2>
-                      <p className="text-xs text-[#00B69B] font-semibold">Sproxil Track™ + Sproxil Verify™</p>
+                      <p className="text-xs text-[#BE0303] font-semibold">Sproxil Track™ + Sproxil Verify™</p>
                     </div>
                   </div>
 
@@ -493,10 +493,10 @@ export default function StoryPage() {
               >
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-[#E85D04] flex items-center justify-center text-white font-black">2</div>
+                    <div className="w-10 h-10 rounded-xl bg-[#BE0303] flex items-center justify-center text-white font-black">2</div>
                     <div>
                       <h2 className="font-black text-gray-900 text-xl">Engagement</h2>
-                      <p className="text-xs text-[#E85D04] font-semibold">Sproxil Promo™</p>
+                      <p className="text-xs text-[#BE0303] font-semibold">Sproxil Promo™</p>
                     </div>
                   </div>
 
@@ -533,10 +533,10 @@ export default function StoryPage() {
               >
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-[#7B2FBE] flex items-center justify-center text-white font-black">3</div>
+                    <div className="w-10 h-10 rounded-xl bg-[#BE0303] flex items-center justify-center text-white font-black">3</div>
                     <div>
                       <h2 className="font-black text-gray-900 text-xl">Loyalty</h2>
-                      <p className="text-xs text-[#7B2FBE] font-semibold">Sproxil Loyalty™ — Emeka's View</p>
+                      <p className="text-xs text-[#BE0303] font-semibold">Sproxil Loyalty™ — Emeka's View</p>
                     </div>
                   </div>
 
@@ -574,10 +574,10 @@ export default function StoryPage() {
               >
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-[#C84B31] flex items-center justify-center text-white font-black">4</div>
+                    <div className="w-10 h-10 rounded-xl bg-[#BE0303] flex items-center justify-center text-white font-black">4</div>
                     <div>
                       <h2 className="font-black text-gray-900 text-xl">Insights</h2>
-                      <p className="text-xs text-[#C84B31] font-semibold">Sproxil Survey™</p>
+                      <p className="text-xs text-[#BE0303] font-semibold">Sproxil Survey™</p>
                     </div>
                   </div>
 
@@ -594,7 +594,7 @@ export default function StoryPage() {
                       <h3 className="font-bold text-gray-800 mb-4 text-sm">Answer Chidinma's survey</h3>
                       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
                         <div className="flex items-center gap-2 mb-4">
-                          <div className="w-8 h-8 bg-[#C84B31] rounded-full flex items-center justify-center">
+                          <div className="w-8 h-8 bg-[#BE0303] rounded-full flex items-center justify-center">
                             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
@@ -613,10 +613,10 @@ export default function StoryPage() {
                       <div className="bg-[#0D1B2A] rounded-2xl p-5 text-white space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                           {[
-                            { l: "Responses Today", v: surveyDone ? "1,248" : "1,247", c: "#C84B31" },
-                            { l: "Avg Completion", v: "88 sec", c: "#E85D04" },
-                            { l: "NPS Score", v: "72", c: "#00B69B" },
-                            { l: "Satisfied", v: "91%", c: "#2D9D3A" },
+                            { l: "Responses Today", v: surveyDone ? "1,248" : "1,247", c: "#BE0303" },
+                            { l: "Avg Completion", v: "88 sec", c: "#BE0303" },
+                            { l: "NPS Score", v: "72", c: "#BE0303" },
+                            { l: "Satisfied", v: "91%", c: "#BE0303" },
                           ].map((s) => (
                             <div key={s.l} className="bg-white/5 rounded-xl p-3">
                               <p className="font-black text-xl" style={{ color: s.c }}>{s.v}</p>
@@ -640,7 +640,7 @@ export default function StoryPage() {
                                   animate={{ width: `${b.pct}%` }}
                                   transition={{ duration: 1, delay: 0.2 }}
                                   className="h-full rounded-full"
-                                  style={{ background: "#C84B31" }}
+                                  style={{ background: "#BE0303" }}
                                 />
                               </div>
                               <p className="text-xs font-bold text-white w-8">{b.pct}%</p>
@@ -666,11 +666,11 @@ export default function StoryPage() {
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {[
-                      { label: "Track", sub: "Supply Chain Visibility", color: "#2D9D3A" },
-                      { label: "Verify", sub: "Consumer Trust", color: "#00B69B" },
-                      { label: "Promo", sub: "Engagement & CRM", color: "#E85D04" },
-                      { label: "Loyalty", sub: "Trade Partner Loyalty", color: "#7B2FBE" },
-                      { label: "Survey", sub: "Real-Time Insights", color: "#C84B31" },
+                      { label: "Track", sub: "Supply Chain Visibility", color: "#BE0303" },
+                      { label: "Verify", sub: "Consumer Trust", color: "#BE0303" },
+                      { label: "Promo", sub: "Engagement & CRM", color: "#BE0303" },
+                      { label: "Loyalty", sub: "Trade Partner Loyalty", color: "#BE0303" },
+                      { label: "Survey", sub: "Real-Time Insights", color: "#BE0303" },
                     ].map((p) => (
                       <div key={p.label} className="text-center">
                         <div

@@ -27,22 +27,22 @@ const trendData = [
 ];
 
 const productBreakdown = [
-  { name: "Verify", value: 54, color: "#00B69B" },
-  { name: "Promo", value: 22, color: "#E85D04" },
-  { name: "Loyalty", value: 12, color: "#7B2FBE" },
-  { name: "Track", value: 8, color: "#2D9D3A" },
-  { name: "Survey", value: 4, color: "#C84B31" },
+  { name: "Verify", value: 54, color: "#BE0303" },
+  { name: "Promo", value: 22, color: "#BE0303" },
+  { name: "Loyalty", value: 12, color: "#BE0303" },
+  { name: "Track", value: 8, color: "#BE0303" },
+  { name: "Survey", value: 4, color: "#BE0303" },
 ];
 
 const nigeriaNodes = [
-  { city: "Lagos", x: 95, y: 310, count: 412, color: "#00B69B" },
-  { city: "Ibadan", x: 120, y: 275, count: 176, color: "#E85D04" },
-  { city: "Kano", x: 215, y: 130, count: 194, color: "#7B2FBE" },
-  { city: "Abuja", x: 210, y: 220, count: 98, color: "#2D9D3A" },
-  { city: "PHC", x: 195, y: 320, count: 178, color: "#C84B31" },
+  { city: "Lagos", x: 95, y: 310, count: 412, color: "#BE0303" },
+  { city: "Ibadan", x: 120, y: 275, count: 176, color: "#BE0303" },
+  { city: "Kano", x: 215, y: 130, count: 194, color: "#BE0303" },
+  { city: "Abuja", x: 210, y: 220, count: 98, color: "#BE0303" },
+  { city: "PHC", x: 195, y: 320, count: 178, color: "#BE0303" },
   { city: "Aba", x: 185, y: 305, count: 287, color: "#BE0303" },
-  { city: "Enugu", x: 195, y: 270, count: 89, color: "#00B69B" },
-  { city: "Kaduna", x: 200, y: 175, count: 67, color: "#7B2FBE" },
+  { city: "Enugu", x: 195, y: 270, count: 89, color: "#BE0303" },
+  { city: "Kaduna", x: 200, y: 175, count: 67, color: "#BE0303" },
 ];
 
 const feedItems = [
@@ -57,7 +57,7 @@ const feedItems = [
 ];
 
 const productColors: Record<string, string> = {
-  Verify: "#00B69B", Promo: "#E85D04", Loyalty: "#7B2FBE", Track: "#2D9D3A", Survey: "#C84B31",
+  Verify: "#BE0303", Promo: "#BE0303", Loyalty: "#BE0303", Track: "#BE0303", Survey: "#BE0303",
 };
 
 function LiveFeed() {
@@ -110,7 +110,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { label: "Total Verifications Today", value: count.toLocaleString(), color: "#0D1B2A", sub: "↑ 12% vs yesterday" },
-            { label: "Genuine", value: genuine.toLocaleString(), color: "#2D9D3A", sub: `${((genuine / count) * 100).toFixed(1)}% of total` },
+            { label: "Genuine", value: genuine.toLocaleString(), color: "#BE0303", sub: `${((genuine / count) * 100).toFixed(1)}% of total` },
             { label: "Flagged / Suspicious", value: flagged.toLocaleString(), color: "#BE0303", sub: `${((flagged / count) * 100).toFixed(1)}% TPI rate` },
           ].map((s) => (
             <motion.div
@@ -136,7 +136,7 @@ export default function DashboardPage() {
                 <XAxis dataKey="region" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{ fill: "#F3F4F6" }} contentStyle={{ borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12 }} />
-                <Bar dataKey="verifications" fill="#00B69B" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="verifications" fill="#BE0303" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -183,7 +183,7 @@ export default function DashboardPage() {
                       transition={{ repeat: Infinity, duration: 2 + Math.random() }}
                     />
                     <text x={n.x} y={n.y + 3} textAnchor="middle" fontSize="7" fill="white" fontWeight="bold">{n.count}</text>
-                    <text x={n.x} y={n.y + 16} textAnchor="middle" fontSize="7" fill="#374151">{n.city}</text>
+                    <text x={n.x} y={n.y + 16} textAnchor="middle" fontSize="7" fill="#545454">{n.city}</text>
                   </g>
                 ))}
               </svg>

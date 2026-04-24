@@ -33,7 +33,7 @@ const WA_DARK  = "#075E54";
 const WA_MED   = "#128C7E";
 const WA_GREEN = "#25D366";
 const WA_BG    = "#E5DDD5";
-const SURVEY_COLOR = "#C84B31";
+const SURVEY_COLOR = "#BE0303";
 
 function nowStr() {
   return new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -124,7 +124,7 @@ function LockScreen({ time, onUnlock }: { time: string; onUnlock: () => void }) 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -30 }}
       onClick={onUnlock}
-      style={{ width: "100%", height: "100%", cursor: "pointer", background: "linear-gradient(170deg,#0f172a 0%,#1e3a8a 55%,#0f172a 100%)", display: "flex", flexDirection: "column", userSelect: "none" }}>
+      style={{ width: "100%", height: "100%", cursor: "pointer", background: "#0D1B2A", display: "flex", flexDirection: "column", userSelect: "none" }}>
       <div style={{ padding: "12px 14px 0" }}>
         <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", borderRadius: 16, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: WA_GREEN, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -169,15 +169,15 @@ function AppIcon({ bg, label, icon, onClick, pulse }: { bg: string; label: strin
 function HomeScreen({ onOpenApp }: { onOpenApp: (app: ChatApp) => void }) {
   return (
     <motion.div initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-      style={{ width: "100%", height: "100%", background: "linear-gradient(170deg,#0f172a 0%,#1e3a8a 55%,#0f172a 100%)", display: "flex", flexDirection: "column" }}>
+      style={{ width: "100%", height: "100%", background: "#0D1B2A", display: "flex", flexDirection: "column" }}>
       <div style={{ flex: 1, padding: "16px 16px 0", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px 8px", alignContent: "start" }}>
-        <AppIcon bg="#1d4ed8" label="Phone" icon={<svg width={24} height={24} viewBox="0 0 24 24" fill="white"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" /></svg>} />
-        <AppIcon bg="#2563eb" label="Messages" icon={<MsgIcon />} onClick={() => onOpenApp("sms")} pulse />
-        <AppIcon bg="#374151" label="Camera" icon={<CamIcon />} />
-        <AppIcon bg="#4b5563" label="Settings" icon={<svg width={22} height={22} viewBox="0 0 24 24" fill="white"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" /></svg>} />
+        <AppIcon bg="#BE0303" label="Phone" icon={<svg width={24} height={24} viewBox="0 0 24 24" fill="white"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" /></svg>} />
+        <AppIcon bg="#0D1B2A" label="Messages" icon={<MsgIcon />} onClick={() => onOpenApp("sms")} pulse />
+        <AppIcon bg="#545454" label="Camera" icon={<CamIcon />} />
+        <AppIcon bg="#0D1B2A" label="Settings" icon={<svg width={22} height={22} viewBox="0 0 24 24" fill="white"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" /></svg>} />
         <AppIcon bg={WA_GREEN} label="WhatsApp" icon={<WaIcon />} onClick={() => onOpenApp("whatsapp")} pulse />
-        <AppIcon bg="#10b981" label="Maps" icon={<svg width={22} height={22} viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>} />
-        <AppIcon bg="#dc2626" label="YouTube" icon={<svg width={22} height={22} viewBox="0 0 24 24" fill="white"><path d="M21.582 6.186a2.506 2.506 0 00-1.768-1.768C18.254 4 12 4 12 4s-6.254 0-7.814.418A2.506 2.506 0 002.418 6.186C2 7.746 2 12 2 12s0 4.254.418 5.814a2.506 2.506 0 001.768 1.768C5.746 20 12 20 12 20s6.254 0 7.814-.418a2.506 2.506 0 001.768-1.768C22 16.254 22 12 22 12s0-4.254-.418-5.814zM10 15V9l5.196 3L10 15z" /></svg>} />
+        <AppIcon bg="#BE0303" label="Maps" icon={<svg width={22} height={22} viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" /></svg>} />
+        <AppIcon bg="#BE0303" label="YouTube" icon={<svg width={22} height={22} viewBox="0 0 24 24" fill="white"><path d="M21.582 6.186a2.506 2.506 0 00-1.768-1.768C18.254 4 12 4 12 4s-6.254 0-7.814.418A2.506 2.506 0 002.418 6.186C2 7.746 2 12 2 12s0 4.254.418 5.814a2.506 2.506 0 001.768 1.768C5.746 20 12 20 12 20s6.254 0 7.814-.418a2.506 2.506 0 001.768-1.768C22 16.254 22 12 22 12s0-4.254-.418-5.814zM10 15V9l5.196 3L10 15z" /></svg>} />
         <AppIcon bg="#3b82f6" label="Browser" icon={<GlobeIcon />} />
       </div>
       <div style={{ padding: "10px 16px 12px" }}>
@@ -188,10 +188,10 @@ function HomeScreen({ onOpenApp }: { onOpenApp: (app: ChatApp) => void }) {
         </div>
       </div>
       <div style={{ margin: "0 12px 12px", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(10px)", borderRadius: 24, padding: "10px 8px", display: "flex", justifyContent: "space-around" }}>
-        <AppIcon bg="#1d4ed8" label="" icon={<svg width={24} height={24} viewBox="0 0 24 24" fill="white"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" /></svg>} />
-        <AppIcon bg="#2563eb" label="" icon={<MsgIcon />} onClick={() => onOpenApp("sms")} />
+        <AppIcon bg="#BE0303" label="" icon={<svg width={24} height={24} viewBox="0 0 24 24" fill="white"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" /></svg>} />
+        <AppIcon bg="#0D1B2A" label="" icon={<MsgIcon />} onClick={() => onOpenApp("sms")} />
         <AppIcon bg={WA_GREEN} label="" icon={<WaIcon />} onClick={() => onOpenApp("whatsapp")} />
-        <AppIcon bg="#374151" label="" icon={<CamIcon />} />
+        <AppIcon bg="#545454" label="" icon={<CamIcon />} />
       </div>
     </motion.div>
   );
@@ -214,7 +214,7 @@ function SurveyChatScreen({
   onRewardSent?: () => void;
 }) {
   const isWa = app === "whatsapp";
-  const headerBg = isWa ? WA_DARK : "#1e293b";
+  const headerBg = isWa ? WA_DARK : "#0D1B2A";
   const chatBg   = isWa ? WA_BG  : "#f1f5f9";
 
   const initMsgs = (): ChatMsg[] => {
@@ -374,7 +374,7 @@ function SurveyChatScreen({
           style={{ cursor: "pointer", background: "none", border: "none", padding: 4, borderRadius: 9999, display: "flex" }}>
           <BackIcon />
         </button>
-        <div style={{ width: 38, height: 38, borderRadius: 9999, background: isWa ? WA_MED : "#334155", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "2px solid rgba(255,255,255,0.15)" }}>
+        <div style={{ width: 38, height: 38, borderRadius: 9999, background: isWa ? WA_MED : "#0D1B2A", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "2px solid rgba(255,255,255,0.15)" }}>
           {isWa ? <WaIcon size={20} /> : <span style={{ color: "white", fontSize: 12, fontWeight: 800 }}>38</span>}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -422,7 +422,7 @@ function SurveyChatScreen({
 
                 {msg.action === "open-wa-survey" && (
                   <span onMouseDown={(e) => e.preventDefault()} onClick={onSwitchToWA}
-                    style={{ display: "inline-block", marginTop: 4, color: "#1d4ed8", fontSize: 12, textDecoration: "underline", cursor: "pointer", wordBreak: "break-all" }}>
+                    style={{ display: "inline-block", marginTop: 4, color: "#BE0303", fontSize: 12, textDecoration: "underline", cursor: "pointer", wordBreak: "break-all" }}>
                     wa.me/2348035380001?text=START+SURVEY
                   </span>
                 )}
@@ -436,7 +436,7 @@ function SurveyChatScreen({
                 )}
 
                 <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 3, marginTop: 3 }}>
-                  <span style={{ fontSize: 9, color: "#9ca3af" }}>{msg.time}</span>
+                  <span style={{ fontSize: 9, color: "#545454" }}>{msg.time}</span>
                   {msg.from === "user" && (
                     <svg width={13} height={13} viewBox="0 0 24 24" fill="#4CAF50"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z" /></svg>
                   )}
@@ -450,7 +450,7 @@ function SurveyChatScreen({
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: "flex" }}>
             <div style={{ background: "white", borderRadius: 14, borderTopLeftRadius: 4, padding: "10px 14px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)", display: "flex", gap: 4, alignItems: "center" }}>
               {[0, 1, 2].map((i) => (
-                <motion.div key={i} style={{ width: 6, height: 6, borderRadius: 9999, background: "#9ca3af" }}
+                <motion.div key={i} style={{ width: 6, height: 6, borderRadius: 9999, background: "#545454" }}
                   animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, delay: i * 0.15, duration: 0.6 }} />
               ))}
             </div>
@@ -466,9 +466,9 @@ function SurveyChatScreen({
           <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             style={{ background: chatBg, padding: "4px 10px", flexShrink: 0 }}>
             <button onMouseDown={(e) => e.preventDefault()} onClick={pasteCode}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: "white", border: "1px solid #e5e7eb", borderRadius: 9999, padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#374151", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-              <svg width={12} height={12} viewBox="0 0 24 24" fill="#16a34a"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" /></svg>
-              Paste code: <span style={{ color: "#16a34a", fontFamily: "monospace", fontWeight: 700 }}>{prefillCode}</span>
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "white", border: "1px solid #e5e7eb", borderRadius: 9999, padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#545454", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="#BE0303"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" /></svg>
+              Paste code: <span style={{ color: "#BE0303", fontFamily: "monospace", fontWeight: 700 }}>{prefillCode}</span>
             </button>
           </motion.div>
         )}
@@ -567,7 +567,7 @@ function BrowserScreen({ onBack, prefillCode, onSurveyComplete, surveyMode, onRe
                         <div style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${sel ? SURVEY_COLOR : "#d1d5db"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                           {sel && <div style={{ width: 7, height: 7, borderRadius: "50%", background: SURVEY_COLOR }} />}
                         </div>
-                        <span style={{ fontSize: 12, color: sel ? SURVEY_COLOR : "#374151", fontWeight: sel ? 600 : 400 }}>{opt}</span>
+                        <span style={{ fontSize: 12, color: sel ? SURVEY_COLOR : "#545454", fontWeight: sel ? 600 : 400 }}>{opt}</span>
                       </label>
                     );
                   })}
@@ -575,13 +575,13 @@ function BrowserScreen({ onBack, prefillCode, onSurveyComplete, surveyMode, onRe
               </div>
             ))}
 
-            {error && <p style={{ color: "#dc2626", fontSize: 11, textAlign: "center", margin: 0 }}>Please answer all questions before submitting.</p>}
+            {error && <p style={{ color: "#BE0303", fontSize: 11, textAlign: "center", margin: 0 }}>Please answer all questions before submitting.</p>}
 
             <button onMouseDown={(e) => e.preventDefault()} onClick={submit}
               style={{ background: SURVEY_COLOR, color: "white", border: "none", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
               Submit Feedback
             </button>
-            <p style={{ fontSize: 10, color: "#9ca3af", textAlign: "center", margin: 0 }}>🎁 ₦500 airtime draw on completion · Powered by Sproxil Survey™</p>
+            <p style={{ fontSize: 10, color: "#545454", textAlign: "center", margin: 0 }}>🎁 ₦500 airtime draw on completion · Powered by Sproxil Survey™</p>
           </div>
         ) : (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
@@ -598,7 +598,7 @@ function BrowserScreen({ onBack, prefillCode, onSurveyComplete, surveyMode, onRe
               <p style={{ fontWeight: 800, color: "#92400e", fontSize: 15, margin: "0 0 2px" }}>🎁 ₦500 Airtime</p>
               <p style={{ fontSize: 11, color: "#78350f", margin: 0 }}>You&apos;ve been entered into the draw</p>
             </div>
-            <p style={{ fontSize: 10, color: "#9ca3af" }}>Results announced Friday · Powered by Sproxil Survey™</p>
+            <p style={{ fontSize: 10, color: "#545454" }}>Results announced Friday · Powered by Sproxil Survey™</p>
           </motion.div>
         )}
       </div>
@@ -645,7 +645,7 @@ export default function SurveyPhoneEmulator({ mode, prefillCode, codeRevealed, o
   const statusBg = (() => {
     if (phase === "off" || phase === "boot") return "#000";
     if (phase === "lock" || phase === "home") return "rgba(10,20,48,0.95)";
-    if (phase === "chat") return chatApp === "sms" ? "#1e293b" : WA_DARK;
+    if (phase === "chat") return chatApp === "sms" ? "#0D1B2A" : WA_DARK;
     if (phase === "browser") return "#f1f3f4";
     return "#000";
   })();
@@ -653,7 +653,7 @@ export default function SurveyPhoneEmulator({ mode, prefillCode, codeRevealed, o
   return (
     <div style={{
       position: "relative", width: 300, height: 634, borderRadius: 46,
-      background: phase === "off" || phase === "boot" ? "#000" : "#1e293b",
+      background: phase === "off" || phase === "boot" ? "#000" : "#0D1B2A",
       boxShadow: "0 0 0 2px #3a3a3a, 0 0 0 6px #1a1a1a, 0 32px 80px rgba(0,0,0,0.55)",
       display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0,
     }}>
@@ -673,7 +673,7 @@ export default function SurveyPhoneEmulator({ mode, prefillCode, codeRevealed, o
               background: "rgba(30,30,30,0.92)", backdropFilter: "blur(12px)",
               borderRadius: 16, padding: "10px 12px",
               display: "flex", alignItems: "center", gap: 10, boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#BE0303", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>
               💰
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>

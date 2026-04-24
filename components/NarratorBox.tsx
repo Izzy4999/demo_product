@@ -8,9 +8,9 @@ interface Props {
 
 const variants = {
   blue: { bg: "bg-[#EBF5FB]", border: "border-[#2E86C1]", icon: "text-[#2E86C1]" },
-  orange: { bg: "bg-[#FEF3E2]", border: "border-[#E85D04]", icon: "text-[#E85D04]" },
-  green: { bg: "bg-[#EAFAF1]", border: "border-[#2D9D3A]", icon: "text-[#2D9D3A]" },
-  purple: { bg: "bg-[#F5EEF8]", border: "border-[#7B2FBE]", icon: "text-[#7B2FBE]" },
+  orange: { bg: "bg-[#FEF3E2]", border: "border-[#BE0303]", icon: "text-[#BE0303]" },
+  green: { bg: "bg-[#EAFAF1]", border: "border-[#BE0303]", icon: "text-[#BE0303]" },
+  purple: { bg: "bg-[#F5EEF8]", border: "border-[#BE0303]", icon: "text-[#BE0303]" },
 };
 
 export default function NarratorBox({ children, label = "Presenter Script", variant = "blue" }: Props) {

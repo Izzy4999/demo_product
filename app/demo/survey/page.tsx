@@ -5,7 +5,7 @@ import ScratchCard from "@/components/ScratchCard";
 import SurveyPhoneEmulator, { SurveyMode, SurveyResult } from "@/components/SurveyPhoneEmulator";
 import { motion, AnimatePresence } from "framer-motion";
 
-const COLOR = "#C84B31";
+const COLOR = "#BE0303";
 const CODE  = "SNG-7829-KXPQ";
 
 const MODES: { id: SurveyMode; label: string; sub: string; icon: string }[] = [
@@ -47,14 +47,14 @@ export default function SurveyDemo() {
                 <div className="flex flex-col gap-2">
                   {MODES.map((m) => (
                     <button key={m.id} onClick={() => switchMode(m.id)}
-                      className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 ${mode === m.id ? "border-[#C84B31] bg-orange-50" : "border-gray-200"}`}>
+                      className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 ${mode === m.id ? "border-[#BE0303] bg-orange-50" : "border-gray-200"}`}>
                       <span className="text-xl">{m.icon}</span>
                       <div className="flex-1">
-                        <p className={`text-sm font-bold ${mode === m.id ? "text-[#C84B31]" : "text-gray-600"}`}>{m.label}</p>
+                        <p className={`text-sm font-bold ${mode === m.id ? "text-[#BE0303]" : "text-gray-600"}`}>{m.label}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{m.sub}</p>
                       </div>
                       {mode === m.id && (
-                        <svg width={16} height={16} viewBox="0 0 24 24" fill="#C84B31" className="flex-shrink-0">
+                        <svg width={16} height={16} viewBox="0 0 24 24" fill="#BE0303" className="flex-shrink-0">
                           <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                         </svg>
                       )}
