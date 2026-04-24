@@ -5,10 +5,10 @@ import Navbar from "@/components/Navbar";
 import ScratchCard from "@/components/ScratchCard";
 import LoyaltyPhoneEmulator, { LoyaltyResult } from "@/components/LoyaltyPhoneEmulator";
 
-const COLOR = "#7B2FBE";
+const COLOR = "#BE0303";
 const CODE  = "LYL-4821-MNVX";
 
-const tierColors: Record<string, string> = { Bronze: "#cd7f32", Silver: "#9ca3af", Gold: "#f59e0b" };
+const tierColors: Record<string, string> = { Bronze: "#545454", Silver: "#545454", Gold: "#BE0303" };
 
 const RETAILERS = [
   { name: "Emeka Okafor",  initials: "EO", location: "Aba, Abia State",   basePoints: 1250, cartons: 8,  tier: "Silver", streak: "4 weeks", toGold: 1500 },
@@ -125,7 +125,7 @@ export default function LoyaltyDemo() {
                               animate={{ width: `${Math.min((emekaPoints / 1500) * 100, 100)}%` }}
                               transition={{ duration: 0.8, ease: "easeOut" }}
                               className="h-full rounded-full"
-                              style={{ background: `linear-gradient(90deg, ${COLOR}, #a855f7)` }}
+                              style={{ background: `linear-gradient(90deg, ${COLOR}, #BE0303)` }}
                             />
                           </div>
                           {result && (
@@ -202,7 +202,7 @@ export default function LoyaltyDemo() {
 
                   <div className="flex items-center gap-4 p-4">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                      style={{ background: selected === i ? COLOR : "#7c3aed" }}>
+                      style={{ background: selected === i ? COLOR : "#BE0303" }}>
                       {r.initials}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -228,7 +228,7 @@ export default function LoyaltyDemo() {
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <motion.div animate={{ width: `${pct}%` }} transition={{ duration: 0.6, ease: "easeOut" }}
-                        className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${COLOR}, #a855f7)` }} />
+                        className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${COLOR}, #BE0303)` }} />
                     </div>
                   </div>
                 </motion.div>

@@ -10,11 +10,11 @@
   --color-brand-body: #212121;
   --color-brand-gray: #545454;
 
-  --color-product-verify: #00B69B;
-  --color-product-promo: #E85D04;
-  --color-product-loyalty: #7B2FBE;
-  --color-product-track: #2D9D3A;
-  --color-product-survey: #C84B31;
+  --color-product-verify: #BE0303;
+  --color-product-promo: #BE0303;
+  --color-product-loyalty: #BE0303;
+  --color-product-track: #BE0303;
+  --color-product-survey: #BE0303;
 
   --background-image-brand-gradient: linear-gradient(135deg, #6D0000 0%, #BE0303 100%);
   --background-image-navy-gradient: linear-gradient(135deg, #0D1B2A 0%, #1a2f45 100%);
@@ -75,7 +75,7 @@ body {
 }
 
 .step-active-glow {
-  box-shadow: 0 0 0 4px rgba(0, 182, 155, 0.25);
+  box-shadow: 0 0 0 4px rgba(190, 3, 3, 0.25);
 }
 
 @keyframes floatDot {

@@ -8,7 +8,7 @@ interface Props {
   activeIndex?: number;
 }
 
-const defaultColors = ["#0D1B2A", "#2D9D3A", "#00B69B", "#BE0303", "#E85D04", "#7B2FBE"];
+const defaultColors = ["#0D1B2A", "#BE0303", "#BE0303", "#BE0303", "#BE0303", "#BE0303"];
 
 export default function StepFlow({ steps, activeIndex = steps.length - 1 }: Props) {
   return (

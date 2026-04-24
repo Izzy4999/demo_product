@@ -52,7 +52,7 @@ function buildResponse(text: string, scenario: Scenario, app: AppType): string {
 function topBarColor(phase: Phase, app: AppType | null): string {
   if (phase === "off" || phase === "boot") return "#000";
   if (phase === "lock" || phase === "home") return "rgba(10,20,48,0.95)";
-  if (phase === "chat") return app === "whatsapp" ? WA_DARK : "#1e293b";
+  if (phase === "chat") return app === "whatsapp" ? WA_DARK : "#0D1B2A";
   return "#000";
 }
 
@@ -184,7 +184,7 @@ function LockScreen({ time, onUnlock }: { time: string; onUnlock: () => void }) 
       onClick={onUnlock}
       style={{
         width: "100%", height: "100%", cursor: "pointer",
-        background: "linear-gradient(170deg,#0f172a 0%,#1e3a8a 55%,#0f172a 100%)",
+        background: "#0D1B2A",
         display: "flex", flexDirection: "column", position: "relative", userSelect: "none",
       }}
     >
@@ -240,29 +240,29 @@ function HomeScreen({ onOpenApp }: { onOpenApp: (a: AppType) => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-      style={{ width: "100%", height: "100%", background: "linear-gradient(170deg,#0f172a 0%,#1e3a8a 55%,#0f172a 100%)", display: "flex", flexDirection: "column" }}
+      style={{ width: "100%", height: "100%", background: "#0D1B2A", display: "flex", flexDirection: "column" }}
     >
       <div style={{ flex: 1, padding: "16px 16px 0", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px 8px", alignContent: "start" }}>
-        <AppIcon bg="#1d4ed8" label="Phone" icon={<PhoneIcon />} />
-        <AppIcon bg="#2563eb" label="Messages" icon={<MsgIcon />} onClick={() => onOpenApp("sms")} />
-        <AppIcon bg="#374151" label="Camera" icon={<CamIcon />} />
-        <AppIcon bg="#4b5563" label="Settings" icon={
+        <AppIcon bg="#BE0303" label="Phone" icon={<PhoneIcon />} />
+        <AppIcon bg="#0D1B2A" label="Messages" icon={<MsgIcon />} onClick={() => onOpenApp("sms")} />
+        <AppIcon bg="#545454" label="Camera" icon={<CamIcon />} />
+        <AppIcon bg="#0D1B2A" label="Settings" icon={
           <svg width={22} height={22} viewBox="0 0 24 24" fill="white">
             <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
           </svg>
         } />
         <AppIcon bg={WA_GREEN} label="WhatsApp" icon={<WaIcon />} onClick={() => onOpenApp("whatsapp")} />
-        <AppIcon bg="#10b981" label="Maps" icon={
+        <AppIcon bg="#BE0303" label="Maps" icon={
           <svg width={22} height={22} viewBox="0 0 24 24" fill="white">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
           </svg>
         } />
-        <AppIcon bg="#dc2626" label="YouTube" icon={
+        <AppIcon bg="#BE0303" label="YouTube" icon={
           <svg width={22} height={22} viewBox="0 0 24 24" fill="white">
             <path d="M21.582 6.186a2.506 2.506 0 00-1.768-1.768C18.254 4 12 4 12 4s-6.254 0-7.814.418A2.506 2.506 0 002.418 6.186C2 7.746 2 12 2 12s0 4.254.418 5.814a2.506 2.506 0 001.768 1.768C5.746 20 12 20 12 20s6.254 0 7.814-.418a2.506 2.506 0 001.768-1.768C22 16.254 22 12 22 12s0-4.254-.418-5.814zM10 15V9l5.196 3L10 15z" />
           </svg>
         } />
-        <AppIcon bg="#7c3aed" label="Gallery" icon={
+        <AppIcon bg="#BE0303" label="Gallery" icon={
           <svg width={22} height={22} viewBox="0 0 24 24" fill="white">
             <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
           </svg>
@@ -278,10 +278,10 @@ function HomeScreen({ onOpenApp }: { onOpenApp: (a: AppType) => void }) {
       </div>
       {/* Dock */}
       <div style={{ margin: "0 12px 12px", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(10px)", borderRadius: 24, padding: "10px 8px", display: "flex", justifyContent: "space-around" }}>
-        <AppIcon bg="#1d4ed8" label="" icon={<PhoneIcon />} />
-        <AppIcon bg="#2563eb" label="" icon={<MsgIcon />} onClick={() => onOpenApp("sms")} />
+        <AppIcon bg="#BE0303" label="" icon={<PhoneIcon />} />
+        <AppIcon bg="#0D1B2A" label="" icon={<MsgIcon />} onClick={() => onOpenApp("sms")} />
         <AppIcon bg={WA_GREEN} label="" icon={<WaIcon />} onClick={() => onOpenApp("whatsapp")} />
-        <AppIcon bg="#374151" label="" icon={<CamIcon />} />
+        <AppIcon bg="#545454" label="" icon={<CamIcon />} />
       </div>
     </motion.div>
   );
@@ -310,18 +310,18 @@ function ReportSheet({ onClose, onDone }: { onClose: () => void; onDone: (d: { s
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Shop Name</label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#545454", display: "block", marginBottom: 4 }}>Shop Name</label>
             <input value={shop} onChange={(e) => setShop(e.target.value)} placeholder="e.g. Emeka Stores"
               style={{ width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "9px 12px", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
           </div>
           <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Area / Street</label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#545454", display: "block", marginBottom: 4 }}>Area / Street</label>
             <input value={area} onChange={(e) => setArea(e.target.value)} placeholder="e.g. Ariaria Market, Aba"
               style={{ width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "9px 12px", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
           </div>
           {!locShared ? (
             <button onClick={() => setLocShared(true)}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, border: "2px dashed #10b981", borderRadius: 10, padding: "10px", background: "none", color: "#059669", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, border: "2px dashed #BE0303", borderRadius: 10, padding: "10px", background: "none", color: "#BE0303", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               <PinIcon /> Share My Location
             </button>
           ) : (
@@ -360,7 +360,7 @@ function renderText(text: string, onLinkClick?: () => void): React.ReactNode {
     if (m.index > last) parts.push(text.slice(last, m.index));
     parts.push(
       <span key={m.index} onClick={onLinkClick}
-        style={{ color: "#1d4ed8", textDecoration: "underline", cursor: "pointer" }}>
+        style={{ color: "#BE0303", textDecoration: "underline", cursor: "pointer" }}>
         {m[0]}
       </span>
     );
@@ -403,7 +403,7 @@ function ChatScreen({
   }, []);
 
   const isWa = app === "whatsapp";
-  const headerBg = isWa ? WA_DARK : "#1e293b";
+  const headerBg = isWa ? WA_DARK : "#0D1B2A";
   const chatBg = isWa ? WA_BG : "#f1f5f9";
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [messages, reportPhase]);
@@ -438,7 +438,7 @@ function ChatScreen({
           <BackIcon />
         </button>
         {/* Avatar */}
-        <div style={{ width: 38, height: 38, borderRadius: 9999, background: isWa ? WA_MED : "#334155", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "2px solid rgba(255,255,255,0.15)" }}>
+        <div style={{ width: 38, height: 38, borderRadius: 9999, background: isWa ? WA_MED : "#0D1B2A", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "2px solid rgba(255,255,255,0.15)" }}>
           {isWa ? <WaIcon size={20} /> : <span style={{ color: "white", fontSize: 12, fontWeight: 800 }}>38</span>}
         </div>
         {/* Contact info */}
@@ -501,7 +501,7 @@ function ChatScreen({
                   </button>
                 )}
                 <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 3, marginTop: 3 }}>
-                  <span style={{ fontSize: 9, color: "#9ca3af" }}>{msg.time}</span>
+                  <span style={{ fontSize: 9, color: "#545454" }}>{msg.time}</span>
                   {msg.from === "user" && (
                     <svg width={13} height={13} viewBox="0 0 24 24" fill="#4CAF50">
                       <path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z" />
@@ -518,7 +518,7 @@ function ChatScreen({
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: "flex", justifyContent: "flex-start" }}>
             <div style={{ background: "white", borderRadius: 14, borderTopLeftRadius: 4, padding: "10px 14px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)", display: "flex", gap: 4, alignItems: "center" }}>
               {[0, 1, 2].map((i) => (
-                <motion.div key={i} style={{ width: 6, height: 6, borderRadius: 9999, background: "#9ca3af" }}
+                <motion.div key={i} style={{ width: 6, height: 6, borderRadius: 9999, background: "#545454" }}
                   animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, delay: i * 0.15, duration: 0.6 }} />
               ))}
             </div>
@@ -532,7 +532,7 @@ function ChatScreen({
               <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>
                 {`✅ Report received. Thank you.\n\nA TPI alert has been raised and your location logged.\nRef: TPI-ABA-${Math.floor(10000 + Math.random() * 90000)}`}
               </p>
-              <span style={{ fontSize: 9, color: "#9ca3af", display: "block", textAlign: "right", marginTop: 3 }}>{nowStr()}</span>
+              <span style={{ fontSize: 9, color: "#545454", display: "block", textAlign: "right", marginTop: 3 }}>{nowStr()}</span>
             </div>
           </motion.div>
         )}
@@ -546,11 +546,11 @@ function ChatScreen({
           <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             style={{ background: chatBg, padding: "4px 10px", flexShrink: 0 }}>
             <button onClick={pasteCode}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: "white", border: "1px solid #e5e7eb", borderRadius: 9999, padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#374151", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-              <svg width={12} height={12} viewBox="0 0 24 24" fill="#16a34a">
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "white", border: "1px solid #e5e7eb", borderRadius: 9999, padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#545454", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="#BE0303">
                 <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
               </svg>
-              Paste code: <span style={{ color: "#16a34a", fontFamily: "monospace", fontWeight: 700 }}>{prefillCode}</span>
+              Paste code: <span style={{ color: "#BE0303", fontFamily: "monospace", fontWeight: 700 }}>{prefillCode}</span>
             </button>
           </motion.div>
         )}
@@ -618,7 +618,7 @@ export default function PhoneEmulator({ scenario, prefillCode, codeRevealed, onR
 
   const statusBg = topBarColor(phase, app);
   // phone body background matches status bar when off/boot (all black)
-  const phoneBg = phase === "off" || phase === "boot" ? "#000" : "#1e293b";
+  const phoneBg = phase === "off" || phase === "boot" ? "#000" : "#0D1B2A";
 
   return (
     <div style={{

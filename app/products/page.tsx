@@ -9,7 +9,7 @@ const products = [
     name: "Sproxil Verify™",
     tagline: "Brand & Consumer Protection from Counterfeits",
     hook: "Have you ever had a customer return a product claiming it was fake — and you weren't sure if they were right?",
-    color: "#00B69B",
+    color: "#BE0303",
     stats: ["4.5B PINs generated", "90M+ verifications", "Works on ANY phone"],
   },
   {
@@ -17,7 +17,7 @@ const products = [
     name: "Sproxil Promo™",
     tagline: "Mobile-Driven Consumer Loyalty Rewards",
     hook: "When you run a promotion today — how do you know which specific consumers participated? From which town? On which day?",
-    color: "#E85D04",
+    color: "#BE0303",
     stats: ["$5M+ rewards disbursed", "100K+ verifications (Mouka)", "18% repeat users"],
   },
   {
@@ -25,7 +25,7 @@ const products = [
     name: "Sproxil Loyalty™",
     tagline: "Trade & Channel Partner Loyalty",
     hook: "Every hand in your supply chain makes a daily decision: push your brand, or push a competitor. How do you compete?",
-    color: "#7B2FBE",
+    color: "#BE0303",
     stats: ["60%+ participation rates", "Instant USSD rewards", "Direct comms to retailers"],
   },
   {
@@ -33,7 +33,7 @@ const products = [
     name: "Sproxil Track™",
     tagline: "Factory-to-Consumer Supply Chain Visibility",
     hook: "If a product recall happened tonight — how long would it take you to know which distributor has that batch?",
-    color: "#2D9D3A",
+    color: "#BE0303",
     stats: ["GS1-standard barcodes", "Real-time batch tracking", "NAFDAC compliant"],
   },
   {
@@ -41,7 +41,7 @@ const products = [
     name: "Sproxil Survey™",
     tagline: "Real-Time End-Consumer Insights",
     hook: "When was the last time you spoke directly to someone who just bought your product — right at the moment of purchase?",
-    color: "#C84B31",
+    color: "#BE0303",
     stats: ["Zero recall bias", "₦200–500 completion reward", "Always-on research"],
   },
 ];

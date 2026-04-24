@@ -5,7 +5,7 @@ import ScratchCard from "@/components/ScratchCard";
 import PhoneEmulator from "@/components/PhoneEmulator";
 import { motion, AnimatePresence } from "framer-motion";
 
-const COLOR = "#00B69B";
+const COLOR = "#BE0303";
 const CODE = "SNG-7829-KXPQ";
 
 export default function VerifyDemo() {

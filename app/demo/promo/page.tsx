@@ -5,7 +5,7 @@ import ScratchCard from "@/components/ScratchCard";
 import PromoPhoneEmulator, { PrizeType, PromoResult } from "@/components/PromoPhoneEmulator";
 import { motion, AnimatePresence } from "framer-motion";
 
-const COLOR = "#E85D04";
+const COLOR = "#BE0303";
 const CODE  = "SNG-7829-PRMO";
 
 // ─── Prize scenario definitions ───────────────────────────────────────────────
@@ -84,11 +84,11 @@ export default function PromoDemo() {
                       }}>
                       <span className="text-xl flex-shrink-0">{p.icon}</span>
                       <div className="flex-1">
-                        <p className="text-sm font-bold" style={{ color: prizeType === p.id ? COLOR : "#374151" }}>{p.label}</p>
+                        <p className="text-sm font-bold" style={{ color: prizeType === p.id ? COLOR : "#545454" }}>{p.label}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{p.sub}</p>
                       </div>
                       <span className="text-xs font-black px-2 py-0.5 rounded-full flex-shrink-0"
-                        style={{ background: prizeType === p.id ? `${COLOR}20` : "#f3f4f6", color: prizeType === p.id ? COLOR : "#9ca3af" }}>
+                        style={{ background: prizeType === p.id ? `${COLOR}20` : "#f3f4f6", color: prizeType === p.id ? COLOR : "#545454" }}>
                         {p.badge}
                       </span>
                       {prizeType === p.id && (
