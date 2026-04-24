@@ -2,14 +2,25 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
+import Barcode from "react-barcode";
 import Navbar from "@/components/Navbar";
 import TrackPhoneEmulator, { WorkflowStep } from "@/components/TrackPhoneEmulator";
+import ScannerDevice from "@/components/ScannerDevice";
 
 const COLOR = "#2D9D3A";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
-const CLIENTS = ["Sanofi Nigeria", "GlaxoSmithKline NG", "Roche Nigeria"];
+const CLIENTS = ["Sanofi Nigeria", "GlaxoSmithKline NG", "Roche Nigeria", "Auscel Laboratories Limited"];
+
+const LOCATIONS = [
+  "Lagos — Apapa Warehouse",
+  "Kano — Central Distribution Hub",
+  "Abuja — FCT Depot",
+  "Port Harcourt — Rivers State Depot",
+  "Onitsha — Main Market Depot",
+  "Ibadan — SW Regional Hub",
+];
 
 const GTIN_OPTIONS = [
   { gtin: "05900232923", name: "Panadol Extra 500mg × 12",  sku: "PAN-EX-12-NG",  barcode: "5900232923" },
@@ -25,15 +36,12 @@ interface ProductData {
   serial: string; volume: number;
 }
 
-interface GeneratedLabel {
-  id: string; client: string; product: string; batch: string;
-  serial: string; gtin: string; mfg: string; expiry: string;
-  volume: number; generated: string; data: ProductData;
-}
 
 // Bulk serial records
-interface SGTINRow { index: number; ai: string; gtin14: string; serial: string; batch: string; expiry: string; }
-interface SSCCRow  { index: number; ai: string; sscc18: string; batch: string; client: string; }
+interface SGTINRow   { index: number; ai: string; gtin14: string; serial: string; batch: string; expiry: string; }
+interface SGTINBatch { id: string; productName: string; clientName: string; dateGenerated: string; generatedBy: string; batchLot: string; expiryDate: string; mfgDate: string; volume: number; rows: SGTINRow[]; }
+interface SSCCRow    { index: number; ai: string; sscc18: string; client: string; location: string; tag: string; }
+interface SSCCBatch  { id: string; clientName: string; productName: string; volume: number; tag: string; dateGenerated: string; rows: SSCCRow[]; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -41,6 +49,22 @@ function fmtDate(iso: string) {
   if (!iso) return "";
   try { return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
   catch { return iso; }
+}
+
+function toYYMMDD(iso: string) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    const yy = String(d.getFullYear()).slice(2);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yy}${mm}${dd}`;
+  } catch { return iso; }
+}
+
+function yymmddToExpiry(s: string) {
+  if (s.length !== 6) return s;
+  return `${s.slice(2, 4)}/20${s.slice(0, 2)}`;
 }
 
 function expiryShort(iso: string) {
@@ -97,39 +121,32 @@ function generateSGTINs(gtin: string, batch: string, expiry: string, volume: num
 }
 
 /** Generate a batch of SSCCs */
-function generateSSCCs(gtin: string, batch: string, client: string, count: number): SSCCRow[] {
+function generateSSCCs(gtin: string, client: string, location: string, tag: string, count: number): SSCCRow[] {
   const rows: SSCCRow[] = [];
   for (let i = 1; i <= count; i++) {
     const sscc18 = buildSSCC(gtin, i);
-    rows.push({ index: i, ai: `(00)${sscc18}`, sscc18, batch, client });
+    rows.push({ index: i, ai: `(00)${sscc18}`, sscc18, client, location, tag });
   }
   return rows;
 }
 
-// ─── Mock pre-existing labels ─────────────────────────────────────────────────
 
-const INITIAL_LABELS: GeneratedLabel[] = [
-  {
-    id: "lbl-001", client: "Sanofi Nigeria", product: "Panadol Extra 500mg × 24",
-    batch: "L213048-A", serial: "SN-0000001-AA", gtin: "05900232924",
-    mfg: "01 Jan 2024", expiry: "01 Jun 2026", volume: 200, generated: "22 Apr 2026",
-    data: {
-      name: "Panadol Extra 500mg × 24", batch: "L213048-A", sku: "PAN-EX-24-NG",
-      expiry: "06/2026", barcode: "5900232924", gtin: "05900232924",
-      client: "Sanofi Nigeria", mfg: "01 Jan 2024", serial: "SN-0000001-AA", volume: 200,
-    },
-  },
-  {
-    id: "lbl-002", client: "Sanofi Nigeria", product: "Panadol Extra 500mg × 12",
-    batch: "L213049-B", serial: "SN-0000047-BJ", gtin: "05900232923",
-    mfg: "10 Jan 2024", expiry: "01 Jul 2026", volume: 100, generated: "22 Apr 2026",
-    data: {
-      name: "Panadol Extra 500mg × 12", batch: "L213049-B", sku: "PAN-EX-12-NG",
-      expiry: "07/2026", barcode: "5900232923", gtin: "05900232923",
-      client: "Sanofi Nigeria", mfg: "10 Jan 2024", serial: "SN-0000047-BJ", volume: 100,
-    },
-  },
-];
+// ─── localStorage helpers ─────────────────────────────────────────────────────
+
+const LS_SGTIN = "sp_track_sgtin_batches";
+const LS_SSCC  = "sp_track_sscc_batches";
+const LS_COMM  = "sp_track_commissioned";
+
+function lsLoad<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+function lsSave(key: string, value: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* quota */ }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const DEFAULT_PRODUCT: ProductData = {
   name: "Panadol Extra 500mg × 12", batch: "L213050-A", sku: "PAN-EX-12-NG",
@@ -139,10 +156,16 @@ const DEFAULT_PRODUCT: ProductData = {
 
 // ─── ProductLabel (used in Phase 1 preview) ───────────────────────────────────
 
-function ProductLabel({ product, qrValue, scanning }: { product: ProductData; qrValue: string; scanning: boolean }) {
+function ProductLabel({ product, qrValue, scanning, compact = false }: { product: ProductData; qrValue: string; scanning: boolean; compact?: boolean }) {
+  const qrSize  = compact ? 52 : 76;
+  const nameSz  = compact ? 11 : 13;
+  const metaSz  = compact ? 7  : 8;
+  const valueSz = compact ? 8  : 9;
+  const pad     = compact ? "10px 12px" : "14px 16px";
+
   return (
     <div style={{
-      background: "white", borderRadius: 12, padding: "14px 16px",
+      background: "white", borderRadius: 12, padding: pad,
       border: "1.5px solid #e5e7eb", boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
       position: "relative", overflow: "hidden", width: "100%",
     }}>
@@ -157,32 +180,34 @@ function ProductLabel({ product, qrValue, scanning }: { product: ProductData; qr
       </AnimatePresence>
 
       {[["top-2 left-2","border-t-2 border-l-2"],["top-2 right-2","border-t-2 border-r-2"],["bottom-2 left-2","border-b-2 border-l-2"],["bottom-2 right-2","border-b-2 border-r-2"]].map(([pos, border], i) => (
-        <div key={i} className={`absolute ${pos} ${border} w-4 h-4`} style={{ borderColor: scanning ? "#ef4444" : "#d1d5db", transition: "border-color 0.2s" }} />
+        <div key={i} className={`absolute ${pos} ${border} w-3 h-3`} style={{ borderColor: scanning ? "#ef4444" : "#d1d5db", transition: "border-color 0.2s" }} />
       ))}
 
-      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", position: "relative", zIndex: 2 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-            <div style={{ width: 20, height: 20, borderRadius: 5, background: COLOR, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ color: "white", fontSize: 10, fontWeight: 900 }}>S</span>
-            </div>
-            <span style={{ fontSize: 8, fontWeight: 700, color: "#6b7280", letterSpacing: 1, textTransform: "uppercase" }}>Sproxil Track™</span>
-          </div>
-          <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0, lineHeight: 1.2 }}>{product.name}</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", marginTop: 8 }}>
-            {[["Batch", product.batch], ["Serial", product.serial], ["GTIN", product.gtin], ["Expiry", product.expiry]].map(([k, v]) => (
-              <div key={k}>
-                <p style={{ fontSize: 8, color: "#9ca3af", margin: 0, textTransform: "uppercase", letterSpacing: 0.5 }}>{k}</p>
-                <p style={{ fontSize: 9, fontWeight: 700, color: "#374151", margin: 0, fontFamily: "monospace" }}>{v}</p>
+      <div style={{ position: "relative", zIndex: 2 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+              <div style={{ width: 16, height: 16, borderRadius: 4, background: COLOR, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ color: "white", fontSize: 8, fontWeight: 900 }}>S</span>
               </div>
-            ))}
+              <span style={{ fontSize: 7, fontWeight: 700, color: "#6b7280", letterSpacing: 1, textTransform: "uppercase" }}>Sproxil Track™</span>
+            </div>
+            <p style={{ fontSize: nameSz, fontWeight: 800, color: "#111", margin: 0, lineHeight: 1.2 }}>{product.name}</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 8px", marginTop: 6 }}>
+              {[["Batch", product.batch], ["Serial", product.serial], ["GTIN", product.gtin], ["Expiry", product.expiry]].map(([k, v]) => (
+                <div key={k}>
+                  <p style={{ fontSize: metaSz, color: "#9ca3af", margin: 0, textTransform: "uppercase", letterSpacing: 0.5 }}>{k}</p>
+                  <p style={{ fontSize: valueSz, fontWeight: 700, color: "#374151", margin: 0, fontFamily: "monospace" }}>{v}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0 }}>
-          <div style={{ padding: 4, background: "white", border: "1px solid #e5e7eb", borderRadius: 6 }}>
-            <QRCodeSVG value={qrValue} size={76} level="M" />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
+            <div style={{ padding: 3, background: "white", border: "1px solid #e5e7eb", borderRadius: 5 }}>
+              <QRCodeSVG value={qrValue} size={qrSize} level="M" />
+            </div>
+            <p style={{ fontSize: 6, color: "#9ca3af", margin: 0, textAlign: "center" }}>Scan to verify</p>
           </div>
-          <p style={{ fontSize: 7, color: "#9ca3af", margin: 0, textAlign: "center" }}>Scan to verify</p>
         </div>
       </div>
     </div>
@@ -191,35 +216,38 @@ function ProductLabel({ product, qrValue, scanning }: { product: ProductData; qr
 
 // ─── Label Generation Phase ───────────────────────────────────────────────────
 
-const PAGE_SIZE = 50;
-
-function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
-  labels: GeneratedLabel[];
-  onGenerate: (label: GeneratedLabel, product: ProductData) => void;
-  onProceed: () => void;
-  generatedProduct: ProductData | null;
+function LabelGenerationPhase({ onGenerate, onProceed, commissionedSerials }: {
+  onGenerate: (product: ProductData) => void;
+  onProceed: (sscc18: string, serials: string[]) => void;
+  commissionedSerials: string[];
 }) {
-  const [tab, setTab] = useState<"sgtin" | "sscc">("sgtin");
+  const [tab, setTab] = useState<"sgtin" | "sscc">("sscc");
 
-  // SGTIN state
+  // SGTIN state — init from localStorage
   const [sgtinForm, setSgtinForm] = useState({
-    client: CLIENTS[0], gtin: GTIN_OPTIONS[0].gtin, batch: "L213050-A",
-    volume: "1200", seqType: "sequential", numType: "alphanumeric",
-    mfgDate: "2024-01-15", expiryDate: "2026-08-01",
+    client: "", location: "", gtin: "", batch: "",
+    volume: "", tag: "", seqType: "", numType: "",
+    mfgDate: "", expiryDate: "",
   });
-  const [sgtins, setSgtins]       = useState<SGTINRow[]>([]);
-  const [sgtinPage, setSgtinPage] = useState(0);
+  const [sgtinBatches, setSgtinBatches] = useState<SGTINBatch[]>(() => lsLoad<SGTINBatch[]>(LS_SGTIN, []));
   const [sgtinGenerating, setSgtinGenerating] = useState(false);
   const [sgtinCount, setSgtinCount] = useState(0);
-
-  // SSCC state
-  const [ssccForm, setSsccForm] = useState({
-    client: CLIENTS[0], gtin: GTIN_OPTIONS[0].gtin, batch: "L213050-A", count: "50",
+  const [selectedSgtinId, setSelectedSgtinId] = useState<string | null>(() => {
+    const saved = lsLoad<SGTINBatch[]>(LS_SGTIN, []);
+    return saved[0]?.id ?? null;
   });
-  const [ssccs, setSsccs]       = useState<SSCCRow[]>([]);
-  const [ssccPage, setSsccPage] = useState(0);
+
+  // SSCC state — init from localStorage
+  const [ssccForm, setSsccForm] = useState({
+    client: CLIENTS[0], location: "", gtin: GTIN_OPTIONS[0].gtin, volume: "50", tag: "",
+  });
+  const [ssccBatches, setSsccBatches] = useState<SSCCBatch[]>(() => lsLoad<SSCCBatch[]>(LS_SSCC, []));
   const [ssccGenerating, setSsccGenerating] = useState(false);
   const [ssccCount, setSsccCount] = useState(0);
+  const [selectedSsccId, setSelectedSsccId] = useState<string | null>(() => {
+    const saved = lsLoad<SSCCBatch[]>(LS_SSCC, []);
+    return saved[0]?.id ?? null;
+  });
 
   const setS = (k: string, v: string) => setSgtinForm(f => ({ ...f, [k]: v }));
   const setC = (k: string, v: string) => setSsccForm(f => ({ ...f, [k]: v }));
@@ -236,21 +264,25 @@ function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
 
   // ── Generate SGTINs ──────────────────────────────────────────────────────────
   const handleGenerateSGTINs = () => {
-    const vol = Math.min(Math.max(parseInt(sgtinForm.volume) || 100, 1), 5000);
+    const gtinVal   = sgtinForm.gtin || GTIN_OPTIONS[0].gtin;
+    const seqType   = sgtinForm.seqType || "sequential";
+    const numType   = sgtinForm.numType || "alphanumeric";
+    const vol       = Math.min(Math.max(parseInt(sgtinForm.volume) || 100, 1), 5000);
+    const batchVal  = sgtinForm.batch || "L000001-A";
+    const mfgVal    = sgtinForm.mfgDate || "2024-01-15";
+    const expiryVal = sgtinForm.expiryDate || "2026-08-01";
+
     setSgtinGenerating(true);
     setSgtinCount(0);
-    setSgtinPage(0);
-    const expShort = expiryShort(sgtinForm.expiryDate);
+    const expShort = expiryShort(expiryVal);
 
-    // Generate in chunks so the counter animation is visible
     let done = 0;
     const chunk = 100;
     const all: SGTINRow[] = [];
 
     const tick = () => {
       const end = Math.min(done + chunk, vol);
-      const partial = generateSGTINs(sgtinForm.gtin, sgtinForm.batch, expShort, end - done, sgtinForm.seqType, sgtinForm.numType);
-      // re-index from done+1
+      const partial = generateSGTINs(gtinVal, batchVal, expShort, end - done, seqType, numType);
       partial.forEach((r, i) => { r.index = done + i + 1; });
       all.push(...partial);
       done = end;
@@ -258,25 +290,38 @@ function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
       if (done < vol) {
         setTimeout(tick, 16);
       } else {
-        setSgtins(all);
         setSgtinGenerating(false);
-        // surface a product + label for the mobile app phase
-        const gtinOpt = GTIN_OPTIONS.find(g => g.gtin === sgtinForm.gtin) || GTIN_OPTIONS[0];
+        const gtinOpt   = GTIN_OPTIONS.find(g => g.gtin === gtinVal) || GTIN_OPTIONS[0];
+        const clientVal = sgtinForm.client || CLIENTS[0];
+        const now       = new Date();
+        const dateGenerated = now.toISOString().slice(0, 10) + " " + now.toTimeString().slice(0, 8);
+
+        const sgtinBatch: SGTINBatch = {
+          id: `sgtin-${Date.now()}`,
+          productName:   gtinOpt.name,
+          clientName:    clientVal,
+          dateGenerated,
+          generatedBy:   "demo.user@sproxil.com",
+          batchLot:      batchVal,
+          expiryDate:    toYYMMDD(expiryVal),
+          mfgDate:       toYYMMDD(mfgVal),
+          volume:        vol,
+          rows:          all,
+        };
+        setSgtinBatches(prev => {
+          const updated = [sgtinBatch, ...prev];
+          lsSave(LS_SGTIN, updated);
+          return updated;
+        });
+        setSelectedSgtinId(sgtinBatch.id);
+
         const product: ProductData = {
-          name: gtinOpt.name, batch: sgtinForm.batch, sku: gtinOpt.sku,
+          name: gtinOpt.name, batch: batchVal, sku: gtinOpt.sku,
           expiry: expShort, barcode: gtinOpt.barcode, gtin: gtinOpt.gtin,
-          client: sgtinForm.client, mfg: fmtDate(sgtinForm.mfgDate),
+          client: clientVal, mfg: fmtDate(mfgVal),
           serial: all[0].serial, volume: vol,
         };
-        const label: GeneratedLabel = {
-          id: `lbl-${Date.now()}`, client: sgtinForm.client, product: gtinOpt.name,
-          batch: sgtinForm.batch, serial: all[0].serial, gtin: gtinOpt.gtin,
-          mfg: fmtDate(sgtinForm.mfgDate), expiry: fmtDate(sgtinForm.expiryDate),
-          volume: vol,
-          generated: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-          data: product,
-        };
-        onGenerate(label, product);
+        onGenerate(product);
       }
     };
     setTimeout(tick, 50);
@@ -284,10 +329,9 @@ function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
 
   // ── Generate SSCCs ───────────────────────────────────────────────────────────
   const handleGenerateSSCCs = () => {
-    const count = Math.min(Math.max(parseInt(ssccForm.count) || 50, 1), 1000);
+    const count = Math.min(Math.max(parseInt(ssccForm.volume) || 50, 1), 1000);
     setSsccGenerating(true);
     setSsccCount(0);
-    setSsccPage(0);
 
     let done = 0;
     const chunk = 50;
@@ -295,7 +339,7 @@ function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
 
     const tick = () => {
       const end = Math.min(done + chunk, count);
-      const partial = generateSSCCs(ssccForm.gtin, ssccForm.batch, ssccForm.client, end - done);
+      const partial = generateSSCCs(ssccForm.gtin, ssccForm.client, ssccForm.location, ssccForm.tag, end - done);
       partial.forEach((r, i) => { r.index = done + i + 1; });
       all.push(...partial);
       done = end;
@@ -303,18 +347,30 @@ function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
       if (done < count) {
         setTimeout(tick, 16);
       } else {
-        setSsccs(all);
+        const gtinOpt = GTIN_OPTIONS.find(g => g.gtin === ssccForm.gtin) || GTIN_OPTIONS[0];
+        const now = new Date();
+        const dateGenerated = now.toISOString().slice(0, 10) + " " +
+          now.toTimeString().slice(0, 8);
+        const batch: SSCCBatch = {
+          id: `sscc-${Date.now()}`,
+          clientName: ssccForm.client,
+          productName: gtinOpt.name,
+          volume: count,
+          tag: ssccForm.tag,
+          dateGenerated,
+          rows: all,
+        };
+        setSsccBatches(prev => {
+          const updated = [batch, ...prev];
+          lsSave(LS_SSCC, updated);
+          return updated;
+        });
+        setSelectedSsccId(batch.id);
         setSsccGenerating(false);
       }
     };
     setTimeout(tick, 50);
   };
-
-  // ── Pagination helpers ───────────────────────────────────────────────────────
-  const sgtinPageData = sgtins.slice(sgtinPage * PAGE_SIZE, (sgtinPage + 1) * PAGE_SIZE);
-  const sgtinPages    = Math.ceil(sgtins.length / PAGE_SIZE);
-  const ssccPageData  = ssccs.slice(ssccPage * PAGE_SIZE, (ssccPage + 1) * PAGE_SIZE);
-  const ssccPages     = Math.ceil(ssccs.length / PAGE_SIZE);
 
   return (
     <div className="space-y-4">
@@ -330,15 +386,15 @@ function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
           </p>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — SSCC first, then GTIN */}
         <div className="flex border-b border-gray-100 px-6">
-          {(["sgtin", "sscc"] as const).map(t => (
+          {(["sscc", "sgtin"] as const).map(t => (
             <button key={t} onMouseDown={e => e.preventDefault()} onClick={() => setTab(t)}
               className="px-5 py-3 text-sm font-bold cursor-pointer border-0 bg-transparent border-b-2 transition-colors flex items-center gap-2"
               style={{ borderBottomColor: tab === t ? COLOR : "transparent", color: tab === t ? COLOR : "#6b7280", marginBottom: -1 }}>
-              {t === "sgtin" ? "SGTINs" : "SSCCs"}
+              {t === "sscc" ? "SSCCs" : "GTINs"}
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: tab === t ? `${COLOR}15` : "#f3f4f6", color: tab === t ? COLOR : "#9ca3af" }}>
-                {t === "sgtin" ? "Unit / Child" : "Pack / Parent"}
+                {t === "sscc" ? "Pack / Parent" : "Unit / Child"}
               </span>
             </button>
           ))}
@@ -348,122 +404,137 @@ function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
         {tab === "sgtin" && (
           <div>
             {/* Form */}
-            <div className="px-6 py-5 bg-gray-50 border-b border-gray-100">
-              <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: COLOR }}>
-                Generate SGTIN Batch — Unit-Level Serial Numbers
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="px-6 py-5 bg-gray-50 border-b border-gray-100 space-y-4">
+              <p className="text-[11px] text-gray-500">Enter the required GTIN details here. Click submit when you&apos;re done.</p>
+
+              {/* Locations */}
+              <div>
+                <label style={labelStyle}>Locations</label>
+                <select value={sgtinForm.location} onChange={e => setS("location", e.target.value)} style={inputStyle}>
+                  <option value="">Select your location</option>
+                  {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+
+              {/* GTINs */}
+              <div>
+                <label style={labelStyle}>GTINs</label>
+                <select value={sgtinForm.gtin} onChange={e => setS("gtin", e.target.value)} style={inputStyle}>
+                  <option value="">Select GTIN</option>
+                  {GTIN_OPTIONS.map(g => <option key={g.gtin} value={g.gtin}>{g.name}</option>)}
+                </select>
+              </div>
+
+              {/* LOT/BATCH NO. + Volume + Tag */}
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label style={labelStyle}>Client</label>
-                  <select value={sgtinForm.client} onChange={e => setS("client", e.target.value)} style={inputStyle}>
-                    {CLIENTS.map(c => <option key={c}>{c}</option>)}
-                  </select>
+                  <label style={labelStyle}>Lot/Batch No.</label>
+                  <input value={sgtinForm.batch} onChange={e => setS("batch", e.target.value)} style={inputStyle} placeholder="lot/batch number" />
                 </div>
                 <div>
-                  <label style={labelStyle}>Product / GTIN</label>
-                  <select value={sgtinForm.gtin} onChange={e => setS("gtin", e.target.value)} style={inputStyle}>
-                    {GTIN_OPTIONS.map(g => <option key={g.gtin} value={g.gtin}>{g.name} — {g.gtin}</option>)}
-                  </select>
+                  <label style={labelStyle}>Volume</label>
+                  <input value={sgtinForm.volume} onChange={e => setS("volume", e.target.value)} style={inputStyle} placeholder="set volume" />
                 </div>
                 <div>
-                  <label style={labelStyle}>Lot / Batch No.</label>
-                  <input value={sgtinForm.batch} onChange={e => setS("batch", e.target.value)} style={inputStyle} placeholder="e.g. L213050-A" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Volume (units)</label>
-                  <input type="number" min={1} max={5000} value={sgtinForm.volume} onChange={e => setS("volume", e.target.value)} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>MFG Date</label>
-                  <input type="date" value={sgtinForm.mfgDate} onChange={e => setS("mfgDate", e.target.value)} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Expiry Date</label>
-                  <input type="date" value={sgtinForm.expiryDate} onChange={e => setS("expiryDate", e.target.value)} style={inputStyle} />
+                  <label style={labelStyle}>Tag</label>
+                  <input value={sgtinForm.tag} onChange={e => setS("tag", e.target.value)} style={inputStyle} placeholder="Set Tag" />
                 </div>
               </div>
-              <div className="flex items-center gap-6 mt-4">
-                <div className="flex items-center gap-3">
-                  <span style={labelStyle}>Sequence:</span>
-                  {["sequential", "random"].map(v => (
-                    <label key={v} className="flex items-center gap-1.5 text-xs cursor-pointer font-semibold" style={{ color: sgtinForm.seqType === v ? "#111" : "#6b7280" }}>
-                      <input type="radio" name="sgtinSeq" value={v} checked={sgtinForm.seqType === v} onChange={() => setS("seqType", v)} style={{ accentColor: COLOR }} />
-                      {v.charAt(0).toUpperCase() + v.slice(1)}
-                    </label>
-                  ))}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span style={labelStyle}>Format:</span>
-                  {[["alphanumeric", "Alpha-Numeric"], ["numeric", "Numeric"]].map(([v, lbl]) => (
-                    <label key={v} className="flex items-center gap-1.5 text-xs cursor-pointer font-semibold" style={{ color: sgtinForm.numType === v ? "#111" : "#6b7280" }}>
-                      <input type="radio" name="sgtinNum" value={v} checked={sgtinForm.numType === v} onChange={() => setS("numType", v)} style={{ accentColor: COLOR }} />
+
+              {/* Serial Number radios */}
+              <div className="grid grid-cols-2 gap-4">
+                <div style={{ border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "14px 16px" }}>
+                  <p style={{ ...labelStyle, marginBottom: 10 }}>Serial Number Sequence Type</p>
+                  {[["sequential", "Sequential Serial Number"], ["random", "Random Serial Number"]].map(([v, lbl]) => (
+                    <label key={v} className="flex items-center gap-2.5 text-sm cursor-pointer mb-2" style={{ color: sgtinForm.seqType === v ? "#111" : "#6b7280" }}>
+                      <input type="radio" name="sgtinSeq" value={v} checked={sgtinForm.seqType === v} onChange={() => setS("seqType", v)}
+                        style={{ accentColor: "#8B1A1A", width: 16, height: 16 }} />
                       {lbl}
                     </label>
                   ))}
                 </div>
+                <div style={{ border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "14px 16px" }}>
+                  <p style={{ ...labelStyle, marginBottom: 10 }}>Serial Number Type</p>
+                  {[["alphanumeric", "Alpha-numeric"], ["numeric", "Numeric"]].map(([v, lbl]) => (
+                    <label key={v} className="flex items-center gap-2.5 text-sm cursor-pointer mb-2" style={{ color: sgtinForm.numType === v ? "#111" : "#6b7280" }}>
+                      <input type="radio" name="sgtinNum" value={v} checked={sgtinForm.numType === v} onChange={() => setS("numType", v)}
+                        style={{ accentColor: "#8B1A1A", width: 16, height: 16 }} />
+                      {lbl}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* MFG + Expiry + Submit */}
+              <div className="flex items-end gap-4">
+                <div className="flex-1">
+                  <label style={labelStyle}>MFG Date</label>
+                  <input type="date" value={sgtinForm.mfgDate} onChange={e => setS("mfgDate", e.target.value)} style={inputStyle} />
+                </div>
+                <div className="flex-1">
+                  <label style={labelStyle}>Expiry Date</label>
+                  <input type="date" value={sgtinForm.expiryDate} onChange={e => setS("expiryDate", e.target.value)} style={inputStyle} />
+                </div>
                 <button onMouseDown={e => e.preventDefault()} onClick={handleGenerateSGTINs} disabled={sgtinGenerating}
-                  className="ml-auto flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer border-0 disabled:opacity-60"
-                  style={{ background: COLOR }}>
-                  {sgtinGenerating ? `Generating… ${sgtinCount.toLocaleString()}` : `Generate ${parseInt(sgtinForm.volume || "0").toLocaleString()} SGTINs →`}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer border-0 disabled:opacity-60 flex-shrink-0"
+                  style={{ background: "#8B1A1A" }}>
+                  {sgtinGenerating ? `Generating… ${sgtinCount.toLocaleString()}` : "Submit"}
                 </button>
               </div>
             </div>
 
-            {/* SGTIN results */}
-            {sgtins.length > 0 && (
-              <div>
-                {/* Stats bar */}
-                <div className="flex items-center gap-4 px-6 py-3 border-b border-gray-100 bg-white flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ background: COLOR }} />
-                    <span className="text-sm font-black text-gray-900">{sgtins.length.toLocaleString()}</span>
-                    <span className="text-xs text-gray-400">SGTINs generated</span>
-                  </div>
-                  <div className="h-4 w-px bg-gray-200" />
-                  <span className="text-xs font-mono text-gray-500">GTIN-14: {toGtin14(sgtinForm.gtin)}</span>
-                  <div className="h-4 w-px bg-gray-200" />
-                  <span className="text-xs font-mono text-gray-500">Batch: {sgtinForm.batch}</span>
-                  <div className="ml-auto flex items-center gap-2">
-                    <span className="text-xs text-gray-400">Page {sgtinPage + 1} of {sgtinPages}</span>
-                    <button disabled={sgtinPage === 0} onClick={() => setSgtinPage(p => p - 1)}
-                      className="px-2 py-1 text-xs rounded border border-gray-200 disabled:opacity-30 cursor-pointer">←</button>
-                    <button disabled={sgtinPage >= sgtinPages - 1} onClick={() => setSgtinPage(p => p + 1)}
-                      className="px-2 py-1 text-xs rounded border border-gray-200 disabled:opacity-30 cursor-pointer">→</button>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "#f9fafb" }}>
-                        {["#", "GS1 Application Identifier (AI)", "GTIN-14", "Serial Number", "Batch / Lot", "Expiry"].map(h => (
-                          <th key={h} style={{ padding: "9px 16px", fontSize: 10, fontWeight: 700, color: "#6b7280", textAlign: "left", textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap", borderBottom: "1px solid #f3f4f6" }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sgtinPageData.map(row => (
-                        <tr key={row.index} style={{ borderBottom: "1px solid #f9fafb" }}>
-                          <td style={{ padding: "8px 16px", fontSize: 11, color: "#9ca3af", fontWeight: 600 }}>{row.index.toLocaleString()}</td>
-                          <td style={{ padding: "8px 16px", fontSize: 11, fontFamily: "monospace", color: "#111", whiteSpace: "nowrap" }}>
-                            <span style={{ color: "#6b7280" }}>(01)</span>{row.gtin14}
-                            <span style={{ color: "#6b7280" }}>(21)</span>{row.serial}
-                          </td>
-                          <td style={{ padding: "8px 16px", fontSize: 11, fontFamily: "monospace", color: "#374151" }}>{row.gtin14}</td>
-                          <td style={{ padding: "8px 16px", fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: COLOR }}>{row.serial}</td>
-                          <td style={{ padding: "8px 16px", fontSize: 11, fontFamily: "monospace", color: "#374151" }}>{row.batch}</td>
-                          <td style={{ padding: "8px 16px", fontSize: 11, fontFamily: "monospace", color: "#374151" }}>{row.expiry}</td>
-                        </tr>
+            {/* GTIN batch history */}
+            {sgtinBatches.length > 0 && !sgtinGenerating && (
+              <div className="overflow-x-auto">
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
+                      {["", "Product Name", "Client Name", "BATCH/LOT", "Expiry", "Volume", "Status", ""].map((h, i) => (
+                        <th key={i} style={{ padding: "12px 16px", fontSize: 12, fontWeight: 500, color: "#6b7280", textAlign: "left", whiteSpace: "nowrap" }}>{h}</th>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sgtinBatches.map((batch) => {
+                      const selected = batch.id === selectedSgtinId;
+                      const sampleSerials = batch.rows.slice(0, 3).map(r => r.serial);
+                      const commCount = sampleSerials.filter(s => commissionedSerials.includes(s)).length;
+                      const allComm = commCount === sampleSerials.length;
+                      return (
+                        <tr key={batch.id} style={{ borderBottom: "1px solid #f9fafb", background: selected ? `${COLOR}06` : "white", transition: "background 0.2s" }}>
+                          <td style={{ padding: "12px 16px", width: 28 }}>
+                            <div style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${selected ? COLOR : "#d1d5db"}`, background: selected ? COLOR : "white", flexShrink: 0 }} />
+                          </td>
+                          <td style={{ padding: "12px 16px", fontSize: 13, color: "#374151", fontWeight: selected ? 700 : 400 }}>{batch.productName}</td>
+                          <td style={{ padding: "12px 16px", fontSize: 13, color: "#6b7280" }}>{batch.clientName}</td>
+                          <td style={{ padding: "12px 16px", fontSize: 13, fontFamily: "monospace", color: "#374151" }}>{batch.batchLot}</td>
+                          <td style={{ padding: "12px 16px", fontSize: 13, fontFamily: "monospace", color: "#6b7280" }}>{batch.expiryDate}</td>
+                          <td style={{ padding: "12px 16px", fontSize: 13, color: "#374151" }}>{batch.volume.toLocaleString()}</td>
+                          <td style={{ padding: "12px 16px" }}>
+                            {allComm
+                              ? <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", padding: "2px 8px", borderRadius: 9999, border: "1px solid #bbf7d0" }}>✓ All Commissioned</span>
+                              : commCount > 0
+                                ? <span style={{ fontSize: 10, fontWeight: 700, color: "#d97706", background: "#fff7ed", padding: "2px 8px", borderRadius: 9999, border: "1px solid #fed7aa" }}>{commCount}/3 Commissioned</span>
+                                : <span style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", background: "#f9fafb", padding: "2px 8px", borderRadius: 9999, border: "1px solid #e5e7eb" }}>Not commissioned</span>
+                            }
+                          </td>
+                          <td style={{ padding: "12px 16px" }}>
+                            <button onMouseDown={e => e.preventDefault()} onClick={() => setSelectedSgtinId(batch.id)}
+                              style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid ${selected ? COLOR : "#e5e7eb"}`, background: selected ? COLOR : "white", color: selected ? "white" : "#374151", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                              {selected ? "✓ Selected" : "Use"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
 
-            {sgtins.length === 0 && !sgtinGenerating && (
+            {sgtinBatches.length === 0 && !sgtinGenerating && (
               <div className="py-16 text-center text-gray-400 text-sm">
-                No SGTINs generated yet. Fill in the form above and click <strong>Generate</strong>.
+                No GTINs generated yet. Fill in the form above and click <strong>Submit</strong>.
               </div>
             )}
 
@@ -473,7 +544,7 @@ function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
                   style={{ width: 32, height: 32, border: `3px solid ${COLOR}30`, borderTopColor: COLOR, borderRadius: 9999 }} />
                 <div className="text-center">
                   <p className="font-black text-2xl" style={{ color: COLOR }}>{sgtinCount.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1">SGTINs generated…</p>
+                  <p className="text-xs text-gray-400 mt-1">GTINs generated…</p>
                 </div>
               </div>
             )}
@@ -488,87 +559,80 @@ function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
               <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: COLOR }}>
                 Generate SSCC Batch — Pack / Case-Level Serial Numbers
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label style={labelStyle}>Client</label>
-                  <select value={ssccForm.client} onChange={e => setC("client", e.target.value)} style={inputStyle}>
-                    {CLIENTS.map(c => <option key={c}>{c}</option>)}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label style={labelStyle}>Locations</label>
+                  <select value={ssccForm.location} onChange={e => setC("location", e.target.value)} style={inputStyle}>
+                    <option value="">Select your location</option>
+                    {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label style={labelStyle}>Product / GTIN</label>
+                <div className="md:col-span-2">
+                  <label style={labelStyle}>GTINs</label>
                   <select value={ssccForm.gtin} onChange={e => setC("gtin", e.target.value)} style={inputStyle}>
-                    {GTIN_OPTIONS.map(g => <option key={g.gtin} value={g.gtin}>{g.name} — {g.gtin}</option>)}
+                    {GTIN_OPTIONS.map(g => <option key={g.gtin} value={g.gtin}>{g.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Batch Reference</label>
-                  <input value={ssccForm.batch} onChange={e => setC("batch", e.target.value)} style={inputStyle} placeholder="e.g. L213050-A" />
+                  <label style={labelStyle}>Volume</label>
+                  <input value={ssccForm.volume} onChange={e => setC("volume", e.target.value)} style={inputStyle} placeholder="set volume" />
                 </div>
                 <div>
-                  <label style={labelStyle}>Number of Cases</label>
-                  <input type="number" min={1} max={1000} value={ssccForm.count} onChange={e => setC("count", e.target.value)} style={inputStyle} />
+                  <label style={labelStyle}>Tag</label>
+                  <input value={ssccForm.tag} onChange={e => setC("tag", e.target.value)} style={inputStyle} placeholder="Set Tag" />
                 </div>
               </div>
-              <div className="flex justify-end mt-4">
+              <div className="mt-5">
                 <button onMouseDown={e => e.preventDefault()} onClick={handleGenerateSSCCs} disabled={ssccGenerating}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer border-0 disabled:opacity-60"
-                  style={{ background: COLOR }}>
-                  {ssccGenerating ? `Generating… ${ssccCount.toLocaleString()}` : `Generate ${parseInt(ssccForm.count || "0").toLocaleString()} SSCCs →`}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer border-0 disabled:opacity-60"
+                  style={{ background: "#8B1A1A" }}>
+                  {ssccGenerating ? `Generating… ${ssccCount.toLocaleString()}` : "Submit"}
                 </button>
               </div>
             </div>
 
-            {/* SSCC results */}
-            {ssccs.length > 0 && (
-              <div>
-                <div className="flex items-center gap-4 px-6 py-3 border-b border-gray-100 bg-white flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ background: COLOR }} />
-                    <span className="text-sm font-black text-gray-900">{ssccs.length.toLocaleString()}</span>
-                    <span className="text-xs text-gray-400">SSCCs generated</span>
-                  </div>
-                  <div className="h-4 w-px bg-gray-200" />
-                  <span className="text-xs font-mono text-gray-500">Batch ref: {ssccForm.batch}</span>
-                  <div className="ml-auto flex items-center gap-2">
-                    <span className="text-xs text-gray-400">Page {ssccPage + 1} of {ssccPages}</span>
-                    <button disabled={ssccPage === 0} onClick={() => setSsccPage(p => p - 1)}
-                      className="px-2 py-1 text-xs rounded border border-gray-200 disabled:opacity-30 cursor-pointer">←</button>
-                    <button disabled={ssccPage >= ssccPages - 1} onClick={() => setSsccPage(p => p + 1)}
-                      className="px-2 py-1 text-xs rounded border border-gray-200 disabled:opacity-30 cursor-pointer">→</button>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "#f9fafb" }}>
-                        {["#", "GS1 Application Identifier (AI)", "SSCC-18", "Batch Reference", "Client"].map(h => (
-                          <th key={h} style={{ padding: "9px 16px", fontSize: 10, fontWeight: 700, color: "#6b7280", textAlign: "left", textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap", borderBottom: "1px solid #f3f4f6" }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ssccPageData.map(row => (
-                        <tr key={row.index} style={{ borderBottom: "1px solid #f9fafb" }}>
-                          <td style={{ padding: "8px 16px", fontSize: 11, color: "#9ca3af", fontWeight: 600 }}>{row.index.toLocaleString()}</td>
-                          <td style={{ padding: "8px 16px", fontSize: 11, fontFamily: "monospace", color: "#111", whiteSpace: "nowrap" }}>
-                            <span style={{ color: "#6b7280" }}>(00)</span>{row.sscc18}
-                          </td>
-                          <td style={{ padding: "8px 16px", fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: COLOR }}>{row.sscc18}</td>
-                          <td style={{ padding: "8px 16px", fontSize: 11, fontFamily: "monospace", color: "#374151" }}>{row.batch}</td>
-                          <td style={{ padding: "8px 16px", fontSize: 11, color: "#374151" }}>{row.client}</td>
-                        </tr>
+            {/* SSCC batch history */}
+            {ssccBatches.length > 0 && !ssccGenerating && (
+              <div className="overflow-x-auto">
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
+                      {["", "Product Name", "Volume", "SSCC", "Tag", "Date Generated", ""].map((h, i) => (
+                        <th key={i} style={{ padding: "12px 16px", fontSize: 12, fontWeight: 500, color: "#6b7280", textAlign: "left", whiteSpace: "nowrap" }}>{h}</th>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ssccBatches.map((batch) => {
+                      const selected = batch.id === selectedSsccId;
+                      const sscc18 = batch.rows[0]?.sscc18 ?? "—";
+                      return (
+                        <tr key={batch.id} style={{ borderBottom: "1px solid #f9fafb", background: selected ? `${COLOR}06` : "white", transition: "background 0.2s" }}>
+                          <td style={{ padding: "12px 16px", width: 28 }}>
+                            <div style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${selected ? COLOR : "#d1d5db"}`, background: selected ? COLOR : "white" }} />
+                          </td>
+                          <td style={{ padding: "12px 16px", fontSize: 13, color: "#374151", fontWeight: selected ? 700 : 400 }}>{batch.productName}</td>
+                          <td style={{ padding: "12px 16px", fontSize: 13, color: "#374151" }}>{batch.volume.toLocaleString()}</td>
+                          <td style={{ padding: "12px 16px", fontSize: 12, fontFamily: "monospace", color: "#6b7280" }}>{sscc18}</td>
+                          <td style={{ padding: "12px 16px", fontSize: 13, color: "#6b7280" }}>{batch.tag || "—"}</td>
+                          <td style={{ padding: "12px 16px", fontSize: 13, color: "#6b7280", fontVariantNumeric: "tabular-nums" }}>{batch.dateGenerated}</td>
+                          <td style={{ padding: "12px 16px" }}>
+                            <button onMouseDown={e => e.preventDefault()} onClick={() => setSelectedSsccId(batch.id)}
+                              style={{ padding: "5px 14px", borderRadius: 8, border: `1.5px solid ${selected ? COLOR : "#e5e7eb"}`, background: selected ? COLOR : "white", color: selected ? "white" : "#374151", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                              {selected ? "✓ Selected" : "Use"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
 
-            {ssccs.length === 0 && !ssccGenerating && (
+            {ssccBatches.length === 0 && !ssccGenerating && (
               <div className="py-16 text-center text-gray-400 text-sm">
-                No SSCCs generated yet. Fill in the form above and click <strong>Generate</strong>.
+                No SSCCs generated yet. Fill in the form above and click <strong>Submit</strong>.
               </div>
             )}
 
@@ -586,43 +650,89 @@ function LabelGenerationPhase({ onGenerate, onProceed, generatedProduct }: {
         )}
       </div>
 
-      {/* Label preview + proceed */}
-      <AnimatePresence>
-        {generatedProduct && (
+      {/* Proceed to mobile — uses selected batches (or first if nothing selected) */}
+      {ssccBatches.length > 0 && sgtinBatches.length > 0 && (() => {
+        const selSscc     = ssccBatches.find(b => b.id === selectedSsccId) ?? ssccBatches[0];
+        const selSgtin    = sgtinBatches.find(b => b.id === selectedSgtinId) ?? sgtinBatches[0];
+        const sscc18      = selSscc.rows[0]?.sscc18 ?? "";
+        const sgtinBatch  = selSgtin;
+        const sampleRows  = sgtinBatch.rows.slice(0, 3);   // preview only
+        const serials     = sgtinBatch.rows.slice(0, 20).map(r => r.serial);
+        const gtin14      = sampleRows[0]?.gtin14 ?? "";
+        const gtinOption  = GTIN_OPTIONS.find(g => toGtin14(g.gtin) === gtin14);
+        const gtinDisplay = gtinOption?.gtin ?? gtin14.replace(/^0+/, "");
+        const expDisplay  = yymmddToExpiry(sgtinBatch.expiryDate);
+
+        return (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-4">
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest mb-0.5" style={{ color: COLOR }}>Label Preview</p>
-                <p className="text-sm text-gray-500">Ready to be printed and attached — proceed to the mobile app flow</p>
+                <p className="text-xs font-bold uppercase tracking-widest mb-0.5" style={{ color: COLOR }}>Ready to Proceed</p>
+                <p className="text-sm text-gray-500">Labels generated — these codes will be used in the mobile app simulation</p>
               </div>
-              <button onMouseDown={e => e.preventDefault()} onClick={onProceed}
+              <button onMouseDown={e => e.preventDefault()}
+                onClick={() => onProceed(sscc18, serials)}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer border-0"
-                style={{ background: COLOR }}>
+                style={{ background: "#8B1A1A" }}>
                 Open Mobile App →
               </button>
             </div>
-            <div className="flex flex-col lg:flex-row gap-6 items-start">
-              <div className="w-full lg:w-96">
-                <ProductLabel product={generatedProduct} qrValue={`SPROXIL:TRACK:${generatedProduct.batch}:${generatedProduct.barcode}`} scanning={false} />
-              </div>
-              <div className="flex-1 grid grid-cols-2 gap-3">
-                {[
-                  ["Client", generatedProduct.client], ["Product", generatedProduct.name],
-                  ["GTIN-14", toGtin14(generatedProduct.gtin)], ["Batch", generatedProduct.batch],
-                  ["First Serial", generatedProduct.serial], ["Volume", `${generatedProduct.volume.toLocaleString()} units`],
-                  ["MFG", generatedProduct.mfg], ["Expiry", generatedProduct.expiry],
-                ].map(([k, v]) => (
-                  <div key={k} className="bg-gray-50 rounded-xl px-3 py-2.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{k}</p>
-                    <p className="text-sm font-bold text-gray-800 truncate" style={{ fontFamily: ["GTIN-14","Batch","First Serial"].includes(k) ? "monospace" : "inherit" }}>{v}</p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+              {/* SSCC barcode */}
+              <div className="px-6 py-5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">SSCC-18 — Pack / Case Barcode</p>
+                <div className="rounded-xl border border-gray-100 overflow-hidden" style={{ background: `${COLOR}04` }}>
+                  <div className="flex items-center gap-2 px-4 pt-4 pb-1">
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-black flex-shrink-0" style={{ background: COLOR }}>00</div>
+                    <span className="font-mono font-bold text-gray-900 text-sm">{sscc18}</span>
                   </div>
-                ))}
+                  <div className="flex justify-center px-4 pb-3 pt-1">
+                    <Barcode
+                      value={`(00)${sscc18}`}
+                      format="CODE128" width={1.4} height={52}
+                      displayValue={false} background="transparent" lineColor="#1a1a1a" margin={0}
+                    />
+                  </div>
+                  <p className="text-[9px] font-mono text-gray-400 text-center pb-3">(00){sscc18}</p>
+                </div>
+              </div>
+
+              {/* SGTIN label cards */}
+              <div className="px-6 py-5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Unit SGTIN Labels — Scan Each</p>
+                <div className="space-y-3">
+                  {sampleRows.map((row, i) => {
+                    const product: ProductData = {
+                      name: sgtinBatch.productName,
+                      batch: sgtinBatch.batchLot,
+                      sku: gtinOption?.sku ?? "",
+                      expiry: expDisplay,
+                      barcode: gtinDisplay,
+                      gtin: gtinDisplay,
+                      client: sgtinBatch.clientName,
+                      mfg: sgtinBatch.mfgDate,
+                      serial: row.serial,
+                      volume: sgtinBatch.volume,
+                    };
+                    return (
+                      <div key={row.serial}>
+                        <p className="text-[10px] font-bold text-gray-400 mb-1.5 ml-0.5">Label {i + 1}</p>
+                        <ProductLabel
+                          product={product}
+                          qrValue={`(01)${gtin14}(21)${row.serial}`}
+                          scanning={false}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
+        );
+      })()}
     </div>
   );
 }
@@ -645,22 +755,42 @@ const WORKFLOW_STEPS: { id: WorkflowStep; label: string; icon: string; tip: stri
 
 export default function TrackDemo() {
   const [phase, setPhase]               = useState<"generate" | "app">("generate");
-  const [labels, setLabels]             = useState<GeneratedLabel[]>(INITIAL_LABELS);
   const [generatedProduct, setGeneratedProduct] = useState<ProductData | null>(null);
+  const [activeSscc, setActiveSscc]     = useState<string | undefined>(undefined);
+  const [activeSerials, setActiveSerials] = useState<string[] | undefined>(undefined);
   const [completedSteps, setCompletedSteps] = useState<Set<WorkflowStep>>(new Set());
+  const [scannerActive, setScannerActive]       = useState(false);
+  const [lastScanResult, setLastScanResult]     = useState<string>("");
+  const [activePackQty, setActivePackQty]       = useState(0);
+  const [ssccScanned, setSsccScanned]           = useState(false);
+  const [vrfParentScanned, setVrfParentScanned] = useState(false);
+  const [activeScreen, setActiveScreen]         = useState<string>("home");
+  const [commissionedSerials, setCommissionedSerials] = useState<string[]>(
+    () => lsLoad<string[]>(LS_COMM, [])
+  );
 
   const activeProduct = generatedProduct || DEFAULT_PRODUCT;
 
-  const handleGenerate = (label: GeneratedLabel, product: ProductData) => {
-    setLabels(prev => {
-      const exists = prev.find(l => l.id === label.id);
-      return exists ? prev : [...prev, label];
-    });
+  const handleGenerate = (product: ProductData) => {
     setGeneratedProduct(product);
+  };
+
+  const handleProceed = (sscc18: string, serials: string[]) => {
+    setActiveSscc(sscc18);
+    setActiveSerials(serials.length > 0 ? serials : undefined);
+    setSsccScanned(false);
+    setVrfParentScanned(false);
+    setActiveScreen("home");
+    setPhase("app");
   };
 
   const handleStepComplete = (step: WorkflowStep) => {
     setCompletedSteps(prev => new Set([...prev, step]));
+  };
+
+  const simulateScan = () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "S", bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   };
 
   // Which step to highlight as "next" (first incomplete, in order)
@@ -719,10 +849,9 @@ export default function TrackDemo() {
           {phase === "generate" && (
             <motion.div key="generate" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
               <LabelGenerationPhase
-                labels={labels}
                 onGenerate={handleGenerate}
-                onProceed={() => setPhase("app")}
-                generatedProduct={generatedProduct}
+                onProceed={handleProceed}
+                commissionedSerials={commissionedSerials}
               />
             </motion.div>
           )}
@@ -747,21 +876,13 @@ export default function TrackDemo() {
                   </button>
                 </div>
 
-                {/* Active label info */}
-                <div className="flex items-center gap-2 mb-6 p-3 rounded-xl border" style={{ background: `${COLOR}08`, borderColor: `${COLOR}30` }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 9999, background: COLOR, flexShrink: 0 }} />
-                  <p className="text-xs text-gray-700">
-                    Active label: <strong>{activeProduct.name}</strong> · Batch <span className="font-mono">{activeProduct.batch}</span> · Serial <span className="font-mono">{activeProduct.serial}</span>
-                  </p>
-                </div>
-
                 <div className="flex flex-col lg:flex-row gap-8 items-start">
 
-                  {/* ── Left: Workflow guide ─────────────────────────── */}
+                  {/* ── Left: Labels + Scanner ───────────────────────── */}
                   <div className="flex-1 space-y-4">
 
-                    {/* Next step tip */}
-                    {nextStep && (
+                    {/* Suggested next step */}
+                    {nextStep ? (
                       <div className="rounded-xl p-4 border" style={{ background: `${COLOR}08`, borderColor: `${COLOR}30` }}>
                         <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: COLOR }}>Suggested Next Step</p>
                         <div className="flex items-center gap-2">
@@ -772,66 +893,142 @@ export default function TrackDemo() {
                           </div>
                         </div>
                       </div>
-                    )}
-                    {!nextStep && (
+                    ) : (
                       <div className="rounded-xl p-4 border" style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}>
                         <p className="text-sm font-bold text-green-700">🎉 All workflow steps completed!</p>
                         <p className="text-xs text-green-600 mt-1">Full supply chain cycle demonstrated.</p>
                       </div>
                     )}
 
-                    {/* Workflow steps list */}
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-widest mb-3 text-gray-400">Workflow Steps</p>
-                      <div className="flex flex-col gap-2">
-                        {WORKFLOW_STEPS.map((step, i) => {
-                          const done = completedSteps.has(step.id);
-                          const isNext = step.id === nextStep?.id;
-                          return (
-                            <motion.div key={step.id}
-                              animate={{ backgroundColor: done ? "#f0fdf4" : isNext ? `${COLOR}08` : "white" }}
-                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl border"
-                              style={{ borderColor: done ? "#bbf7d0" : isNext ? `${COLOR}30` : "#f3f4f6" }}>
-                              <div style={{
-                                width: 28, height: 28, borderRadius: 9999, flexShrink: 0,
-                                background: done ? "#16a34a" : isNext ? COLOR : "#f3f4f6",
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                fontSize: done ? 12 : 14,
+                    {/* Context-aware label panel — SSCC or SGTIN based on active step */}
+                    {(() => {
+                      const SSCC_ALWAYS = ["ship", "receive", "unpack", "view"];
+                      const showSscc = !!activeSscc && (
+                        SSCC_ALWAYS.includes(activeScreen) ||
+                        (activeScreen === "pack"   && !ssccScanned) ||
+                        (activeScreen === "verify" && !vrfParentScanned)
+                      );
+
+                      const ssccTitle: Record<string, string> = {
+                        pack:    "SSCC-18 — Pack / Case",
+                        ship:    "SSCC-18 — Package to Ship",
+                        receive: "SSCC-18 — Incoming Package",
+                        unpack:  "SSCC-18 — Case to Unpack",
+                        view:    "SSCC-18 — Package to View",
+                        verify:  "SSCC-18 — Package to Verify",
+                      };
+                      const sgtinTitle: Record<string, string> = {
+                        commission:   "Unit Labels — Commission",
+                        pack:         "Unit Labels — Children to Pack",
+                        dispense:     "Unit Labels — Dispense",
+                        decommission: "Unit Label — Decommission",
+                        verify:       "Unit Labels — Verify Children",
+                      };
+
+                      return (
+                        <AnimatePresence mode="wait">
+                          {showSscc ? (
+                            <motion.div key={`sscc-${activeScreen}`}
+                              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }}>
+                              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">
+                                {ssccTitle[activeScreen] ?? "SSCC-18 — Pack / Case"}
+                              </p>
+                              <div className="rounded-xl border overflow-hidden" style={{
+                                background: `${COLOR}04`,
+                                borderColor: scannerActive ? "#ef444440" : "#f3f4f6",
+                                position: "relative",
+                                transition: "border-color 0.2s",
                               }}>
-                                {done ? <span style={{ color: "white" }}>✓</span> : <span>{step.icon}</span>}
+                                {/* Corner scan brackets */}
+                                {[["top-2 left-2","border-t-2 border-l-2"],["top-2 right-2","border-t-2 border-r-2"],["bottom-2 left-2","border-b-2 border-l-2"],["bottom-2 right-2","border-b-2 border-r-2"]].map(([pos, bdr], i) => (
+                                  <div key={i} className={`absolute ${pos} ${bdr} w-3 h-3`}
+                                    style={{ borderColor: scannerActive ? "#ef4444" : "#d1d5db", transition: "border-color 0.2s", zIndex: 3 }} />
+                                ))}
+                                {/* Red sweep overlay */}
+                                <AnimatePresence>
+                                  {scannerActive && (
+                                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                      style={{ position: "absolute", inset: 0, background: "rgba(239,68,68,0.05)", zIndex: 2, pointerEvents: "none" }}>
+                                      <motion.div
+                                        initial={{ top: 0 }} animate={{ top: "100%" }}
+                                        transition={{ duration: 0.45, ease: "linear" }}
+                                        style={{ position: "absolute", left: 0, right: 0, height: 3, background: "rgba(239,68,68,0.7)", boxShadow: "0 0 12px rgba(239,68,68,0.8)" }}
+                                      />
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                                <div className="flex items-center gap-2 px-4 pt-3 pb-1" style={{ position: "relative", zIndex: 4 }}>
+                                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-black flex-shrink-0" style={{ background: COLOR }}>00</div>
+                                  <span className="font-mono font-bold text-gray-900 text-sm">{activeSscc}</span>
+                                </div>
+                                <div className="flex justify-center px-4 pb-2 pt-1" style={{ position: "relative", zIndex: 4 }}>
+                                  <Barcode
+                                    value={`(00)${activeSscc}`}
+                                    format="CODE128" width={1.4} height={52}
+                                    displayValue={false} background="transparent" lineColor="#1a1a1a" margin={0}
+                                  />
+                                </div>
+                                <p className="text-[9px] font-mono text-gray-400 text-center pb-3" style={{ position: "relative", zIndex: 4 }}>(00){activeSscc}</p>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold truncate" style={{ color: done ? "#15803d" : isNext ? "#111" : "#6b7280", margin: 0 }}>
-                                  {step.label}
-                                </p>
-                              </div>
-                              {done && <span className="text-[10px] font-bold text-green-600">Done</span>}
-                              {isNext && <span className="text-[10px] font-bold" style={{ color: COLOR }}>Next →</span>}
                             </motion.div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                          ) : (
+                            <motion.div key={`sgtin-${activeScreen}`}
+                              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }}>
+                              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
+                                {sgtinTitle[activeScreen] ?? "Unit Labels — SGTIN"}
+                              </p>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                {(() => {
+                                  const allSerials = activeSerials ?? [activeProduct.serial];
+                                  // In pack scan-children phase: limit to packQty; otherwise show all
+                                  const visibleCount = (activeScreen === "pack" && ssccScanned && activePackQty > 0)
+                                    ? Math.min(activePackQty, allSerials.length)
+                                    : allSerials.length;
+                                  return allSerials.slice(0, visibleCount).map((serial, i) => {
+                                    const label = { ...activeProduct, serial };
+                                    return (
+                                      <div key={serial}>
+                                        <p style={{ fontSize: 9, fontWeight: 600, color: "#9ca3af", marginBottom: 4 }}>Label {i + 1}</p>
+                                        <ProductLabel
+                                          product={label}
+                                          qrValue={`(01)${toGtin14(label.gtin)}(21)${label.serial}`}
+                                          scanning={scannerActive && i === 0}
+                                          compact
+                                        />
+                                      </div>
+                                    );
+                                  });
+                                })()}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      );
+                    })()}
 
-                    {/* Progress */}
-                    <div className="pt-1">
-                      <div className="flex justify-between mb-1.5">
-                        <p className="text-xs font-bold text-gray-500">Progress</p>
-                        <p className="text-xs font-bold" style={{ color: COLOR }}>{completedSteps.size} / {WORKFLOW_STEPS.length}</p>
-                      </div>
-                      <div style={{ height: 6, background: "#f3f4f6", borderRadius: 9999, overflow: "hidden" }}>
-                        <motion.div
-                          animate={{ width: `${(completedSteps.size / WORKFLOW_STEPS.length) * 100}%` }}
-                          style={{ height: "100%", background: COLOR, borderRadius: 9999, transition: "width 0.4s ease" }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Scanner hint */}
-                    <div className="rounded-xl p-3 bg-gray-50 border border-gray-100">
-                      <p className="text-[11px] font-semibold text-gray-500 leading-relaxed">
-                        💡 <strong className="text-gray-700">Physical scanner:</strong> works in all scan screens — just scan any barcode and the app responds automatically. Or tap the <strong className="text-gray-700">▶ Scan</strong> button inside the phone to simulate.
-                      </p>
+                    {/* Handheld scanner device */}
+                    <div style={{ display: "flex", justifyContent: "center", paddingTop: 4 }}>
+                      <ScannerDevice
+                        scanning={scannerActive}
+                        lastScanned={lastScanResult || undefined}
+                        onScan={() => {
+                          if (scannerActive) return;
+                          setScannerActive(true);
+                          setTimeout(() => {
+                            simulateScan();
+                            setScannerActive(false);
+                            // Derive what was just scanned for the LCD "done" state
+                            const SSCC_SCREENS = ["ship", "receive", "unpack", "view", "pack", "verify"];
+                            const isSSCC = SSCC_SCREENS.includes(activeScreen) && !ssccScanned && !vrfParentScanned;
+                            setLastScanResult(isSSCC
+                              ? (activeSscc ?? "")
+                              : (activeSerials?.[0] ?? activeProduct.serial)
+                            );
+                          }, 420);
+                        }}
+                      />
                     </div>
                   </div>
 
@@ -848,7 +1045,25 @@ export default function TrackDemo() {
                         client:  activeProduct.client,
                         expiry:  activeProduct.expiry,
                       }}
+                      sscc={activeSscc}
+                      serials={activeSerials}
                       onStepComplete={handleStepComplete}
+                      onPackParentScanned={() => setSsccScanned(true)}
+                      onPackQtySet={qty => setActivePackQty(qty)}
+                      onVerifyParentScanned={() => setVrfParentScanned(true)}
+                      onScreenChange={s => {
+                        setActiveScreen(s);
+                        if (s !== "pack")   { setSsccScanned(false); setActivePackQty(0); }
+                        if (s !== "verify") setVrfParentScanned(false);
+                      }}
+                      commissionedSerials={commissionedSerials}
+                      onCommission={serials => {
+                        setCommissionedSerials(prev => {
+                          const updated = [...new Set([...prev, ...serials])];
+                          lsSave(LS_COMM, updated);
+                          return updated;
+                        });
+                      }}
                     />
                     <p className="text-xs text-gray-400 text-center max-w-xs">
                       Tap a menu item to open that workflow screen
