@@ -21,9 +21,11 @@ type SimpleStep = "scan" | "confirm" | "done";
 
 const DEFAULT_SSCC = "00359002329230001";
 const LOCATIONS = [
-  "Hub Dispatch — Ilupeju, Lagos",
-  "Distributor — Onitsha, Anambra",
-  "Retailer — Ariaria, Aba",
+  "Abuja — FCT Depot",
+  "Kano — Central Distribution Hub",
+  "Onitsha — Main Market Depot",
+  "Port Harcourt — Rivers State Depot",
+  "Ibadan — SW Regional Hub",
 ];
 const DECOMMISSION_REASONS = ["Damaged / Tampered", "Expired Product", "Wrong Shipment", "Manufacturing Defect"];
 
@@ -50,6 +52,9 @@ interface Props {
   onPackQtySet?: (qty: number) => void;
   onScreenChange?: (screen: AppScreen) => void;
   onCommission?: (serials: string[]) => void;
+  onShip?: (destination: string) => void;
+  onCommissionProgress?: (commissioned: string[]) => void;
+  onChildScan?: (serial: string) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -137,7 +142,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function TrackPhoneEmulator({ product, sscc, serials, commissionedSerials, onStepComplete, onPackParentScanned, onVerifyParentScanned, onPackQtySet, onScreenChange, onCommission }: Props) {
+export default function TrackPhoneEmulator({ product, sscc, serials, commissionedSerials, onStepComplete, onPackParentScanned, onVerifyParentScanned, onPackQtySet, onScreenChange, onCommission, onShip, onCommissionProgress, onChildScan }: Props) {
   const [screen, setScreen] = useState<AppScreen>("home");
 
   // Commission state
@@ -185,6 +190,9 @@ export default function TrackPhoneEmulator({ product, sscc, serials, commissione
   const [vrfExpected, setVrfExpected] = useState<string[]>([]);
   const [vrfDone, setVrfDone]       = useState<string[]>([]);
 
+  // Scan error (e.g. uncommissioned label)
+  const [scanError, setScanError]   = useState<string>("");
+
   const scanBuffer  = useRef("");
   const lastKeyTime = useRef(0);
   const contentRef  = useRef<HTMLDivElement>(null);
@@ -194,11 +202,20 @@ export default function TrackPhoneEmulator({ product, sscc, serials, commissione
   const rawPool = serials?.length
     ? serials
     : [product.serial, `SN-0000090-BC`, `SN-0000091-CD`, `SN-0000092-DE`, `SN-0000093-EF`];
-  // Filter out already-commissioned labels — they cannot be re-commissioned
+  // Labels NOT yet commissioned — used only for the commission workflow
   const activeSerialsPool = rawPool.filter(s => !commSet.has(s));
+  // Labels ALREADY commissioned — used for pack children, dispense, verify, unpack, view
+  const commissionedPool = rawPool.filter(s => commSet.has(s));
 
-  // Children list — from pack result or selected serials
-  const childrenPool = packResult?.children.length ? packResult.children : activeSerialsPool;
+  // Auto-dismiss scan error after 2.5 s
+  useEffect(() => {
+    if (!scanError) return;
+    const t = setTimeout(() => setScanError(""), 2500);
+    return () => clearTimeout(t);
+  }, [scanError]);
+
+  // Children list — after packing, use those exact children; otherwise use commissioned pool
+  const childrenPool = packResult?.children.length ? packResult.children : commissionedPool;
 
   // ── Handle incoming scan ───────────────────────────────────────────────────
   const handleScan = useCallback((raw: string) => {
@@ -217,6 +234,7 @@ export default function TrackPhoneEmulator({ product, sscc, serials, commissione
           // Each scan immediately commits
           setCommItems(prev => {
             const upd = [...prev, next];
+            onCommissionProgress?.(upd);
             if (upd.length >= activeSerialsPool.length) {
               setCommDone(true);
               onStepComplete?.("commission");
@@ -237,6 +255,11 @@ export default function TrackPhoneEmulator({ product, sscc, serials, commissione
           onPackParentScanned?.();
         } else if (packStep === "scan-children") {
           const next = childrenPool[packChildren.length] ?? `SN-${Date.now()}`;
+          if (!commSet.has(next)) {
+            setScanError(`Label not commissioned: ${next.slice(0, 20)}. Commission it first.`);
+            return;
+          }
+          onChildScan?.(next);
           setPackChildren(prev => {
             const upd = [...prev, next];
             if (upd.length >= packQty) {
@@ -274,6 +297,11 @@ export default function TrackPhoneEmulator({ product, sscc, serials, commissione
       case "dispense": {
         if (dspDone) return;
         const next = childrenPool[dspItems.length] ?? `SN-${Date.now()}`;
+        if (!commSet.has(next)) {
+          setScanError(`Label not commissioned: ${next.slice(0, 20)}. Commission it first.`);
+          return;
+        }
+        onChildScan?.(next);
         setDspItems(prev => {
           const upd = [...prev, next];
           if (upd.length >= childrenPool.length) {
@@ -304,6 +332,11 @@ export default function TrackPhoneEmulator({ product, sscc, serials, commissione
         } else if (vrfStep === "scan-children") {
           const next = vrfExpected[vrfDone.length];
           if (!next) return;
+          if (!commSet.has(next)) {
+            setScanError(`Label not commissioned: ${next.slice(0, 20)}. Commission it first.`);
+            return;
+          }
+          onChildScan?.(next);
           setVrfDone(prev => {
             const upd = [...prev, next];
             if (upd.length >= vrfExpected.length) {
@@ -750,7 +783,7 @@ export default function TrackPhoneEmulator({ product, sscc, serials, commissione
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
                 {LOCATIONS.map(loc => (
                   <motion.button key={loc} onMouseDown={e => e.preventDefault()} whileTap={{ scale: 0.98 }}
-                    onClick={() => { setShipDest(loc); setShipStep("done"); onStepComplete?.("ship"); }}
+                    onClick={() => { setShipDest(loc); setShipStep("done"); onStepComplete?.("ship"); onShip?.(loc); }}
                     style={{
                       padding: "11px 14px", border: `1.5px solid ${shipDest === loc ? APP_RED : "#e5e7eb"}`,
                       borderRadius: 10, cursor: "pointer", textAlign: "left", background: "white",
@@ -1117,7 +1150,37 @@ export default function TrackPhoneEmulator({ product, sscc, serials, commissione
         }} />
 
         {/* App content */}
-        <div ref={contentRef} style={{ flex: 1, overflowY: "auto", background: "#f5f5f5" }}>
+        <div ref={contentRef} style={{ flex: 1, overflowY: "auto", background: "#f5f5f5", position: "relative" }}>
+
+          {/* Scan error toast — floats above all screens */}
+          <AnimatePresence>
+            {scanError && (
+              <motion.div
+                key="scan-error"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  position: "sticky", top: 0, zIndex: 100,
+                  margin: "0 0 0 0",
+                  background: "#fef2f2",
+                  borderBottom: "1.5px solid #fecaca",
+                  padding: "9px 14px",
+                  display: "flex", alignItems: "flex-start", gap: 8,
+                }}>
+                <span style={{ fontSize: 13, flexShrink: 0 }}>⚠️</span>
+                <p style={{ margin: 0, fontSize: 10, color: "#dc2626", fontWeight: 700, flex: 1, lineHeight: 1.4 }}>
+                  {scanError}
+                </p>
+                <button onMouseDown={e => e.preventDefault()} onClick={() => setScanError("")}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: 13, padding: 0, flexShrink: 0 }}>
+                  ✕
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence mode="wait">
             <motion.div key={screen} initial={{ opacity: 0, x: screen === "home" ? -10 : 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
               {renderScreen()}

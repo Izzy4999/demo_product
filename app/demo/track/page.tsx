@@ -6,8 +6,11 @@ import Barcode from "react-barcode";
 import Navbar from "@/components/Navbar";
 import TrackPhoneEmulator, { WorkflowStep } from "@/components/TrackPhoneEmulator";
 import ScannerDevice from "@/components/ScannerDevice";
+import TrackMapPhase from "@/components/TrackMapPhase";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import NigeriaAnalyticsMap, { MapPin, MapLegendItem } from "@/components/NigeriaAnalyticsMap";
 
-const COLOR = "#2D9D3A";
+const COLOR = "#BE0303";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -26,6 +29,58 @@ const GTIN_OPTIONS = [
   { gtin: "05900232923", name: "Panadol Extra 500mg × 12",  sku: "PAN-EX-12-NG",  barcode: "5900232923" },
   { gtin: "05900232924", name: "Panadol Extra 500mg × 24",  sku: "PAN-EX-24-NG",  barcode: "5900232924" },
   { gtin: "05900232925", name: "Panadol Extra Caplet × 16", sku: "PAN-CP-16-NG",  barcode: "5900232925" },
+];
+
+// ─── Track Analytics Data ─────────────────────────────────────────────────────
+
+const T_DAILY = [
+  { day: "Mon", commission: 4200, pack: 3100, ship: 1800, receive: 1600 },
+  { day: "Tue", commission: 3800, pack: 2900, ship: 2100, receive: 1900 },
+  { day: "Wed", commission: 5100, pack: 3800, ship: 2400, receive: 2100 },
+  { day: "Thu", commission: 4600, pack: 3400, ship: 2200, receive: 1950 },
+  { day: "Fri", commission: 6200, pack: 4700, ship: 2900, receive: 2600 },
+  { day: "Sat", commission: 3200, pack: 2400, ship: 1400, receive: 1200 },
+  { day: "Sun", commission: 2100, pack: 1600, ship: 900,  receive: 820  },
+];
+
+const T_FUNNEL = [
+  { step: "Commission", count: 284740, pct: 100 },
+  { step: "Pack",       count: 271200, pct: 95.2 },
+  { step: "Ship",       count: 258600, pct: 90.8 },
+  { step: "Receive",    count: 251800, pct: 88.4 },
+  { step: "Verify",     count: 246400, pct: 86.5 },
+];
+
+const T_ROUTES = [
+  { route: "Lagos → Kano",           scans: 48200, exceptions: 12 },
+  { route: "Lagos → Abuja",          scans: 36700, exceptions: 8  },
+  { route: "Apapa → Port Harcourt",  scans: 29400, exceptions: 21 },
+  { route: "Ibadan → Onitsha",       scans: 22100, exceptions: 6  },
+  { route: "Kano → Kaduna",          scans: 18600, exceptions: 4  },
+];
+
+const T_EXCEPTIONS = [
+  { sev: "high", msg: "Serialization mismatch on batch L214012-B",   loc: "Apapa Warehouse, Lagos",     time: "2 min ago" },
+  { sev: "med",  msg: "SSCC scan failed — no matching children",      loc: "Kano Distribution Hub",       time: "18 min ago" },
+  { sev: "low",  msg: "Pack quantity exceeded declared volume",        loc: "FCT Depot, Abuja",            time: "41 min ago" },
+  { sev: "high", msg: "Duplicate serial detected: SN-0004823-KX",     loc: "Rivers State Depot",          time: "1 hr ago" },
+  { sev: "low",  msg: "Decommission without reason code",             loc: "Onitsha Main Market",         time: "2 hr ago" },
+];
+
+// Exception hotspot pins — aggregated from T_ROUTES (route-level exceptions mapped to cities)
+const T_MAP_PINS: MapPin[] = [
+  { id: "lagos",   label: "Lagos",         lon: 3.4,   lat: 6.40,  color: "#dc2626", size: 13, pulse: true,  badge: "41 exceptions" },
+  { id: "ph",      label: "Port Harcourt", lon: 7.0,   lat: 4.82,  color: "#dc2626", size: 11, pulse: true,  badge: "21 exceptions" },
+  { id: "kano",    label: "Kano",          lon: 8.52,  lat: 12.00, color: "#ef4444", size: 9,  pulse: false, badge: "16 exceptions" },
+  { id: "abuja",   label: "Abuja",         lon: 7.5,   lat: 9.10,  color: "#f97316", size: 7,  pulse: false, badge: "8 exceptions"  },
+  { id: "ibadan",  label: "Ibadan",        lon: 3.9,   lat: 7.40,  color: "#f97316", size: 6,  pulse: false, badge: "6 exceptions"  },
+  { id: "onitsha", label: "Onitsha",       lon: 6.8,   lat: 6.15,  color: "#f97316", size: 6,  pulse: false, badge: "6 exceptions"  },
+  { id: "kaduna",  label: "Kaduna",        lon: 7.44,  lat: 10.52, color: "#ca8a04", size: 5,  pulse: false, badge: "4 exceptions"  },
+];
+const T_MAP_LEGEND: MapLegendItem[] = [
+  { color: "#dc2626", label: "High (>15 exceptions)" },
+  { color: "#f97316", label: "Medium (5–15)" },
+  { color: "#ca8a04", label: "Low (<5)" },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -448,7 +503,7 @@ function LabelGenerationPhase({ onGenerate, onProceed, commissionedSerials }: {
                   {[["sequential", "Sequential Serial Number"], ["random", "Random Serial Number"]].map(([v, lbl]) => (
                     <label key={v} className="flex items-center gap-2.5 text-sm cursor-pointer mb-2" style={{ color: sgtinForm.seqType === v ? "#111" : "#6b7280" }}>
                       <input type="radio" name="sgtinSeq" value={v} checked={sgtinForm.seqType === v} onChange={() => setS("seqType", v)}
-                        style={{ accentColor: "#8B1A1A", width: 16, height: 16 }} />
+                        style={{ accentColor: COLOR, width: 16, height: 16 }} />
                       {lbl}
                     </label>
                   ))}
@@ -458,7 +513,7 @@ function LabelGenerationPhase({ onGenerate, onProceed, commissionedSerials }: {
                   {[["alphanumeric", "Alpha-numeric"], ["numeric", "Numeric"]].map(([v, lbl]) => (
                     <label key={v} className="flex items-center gap-2.5 text-sm cursor-pointer mb-2" style={{ color: sgtinForm.numType === v ? "#111" : "#6b7280" }}>
                       <input type="radio" name="sgtinNum" value={v} checked={sgtinForm.numType === v} onChange={() => setS("numType", v)}
-                        style={{ accentColor: "#8B1A1A", width: 16, height: 16 }} />
+                        style={{ accentColor: COLOR, width: 16, height: 16 }} />
                       {lbl}
                     </label>
                   ))}
@@ -477,7 +532,7 @@ function LabelGenerationPhase({ onGenerate, onProceed, commissionedSerials }: {
                 </div>
                 <button onMouseDown={e => e.preventDefault()} onClick={handleGenerateSGTINs} disabled={sgtinGenerating}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer border-0 disabled:opacity-60 flex-shrink-0"
-                  style={{ background: "#8B1A1A" }}>
+                  style={{ background: COLOR }}>
                   {sgtinGenerating ? `Generating… ${sgtinCount.toLocaleString()}` : "Submit"}
                 </button>
               </div>
@@ -585,7 +640,7 @@ function LabelGenerationPhase({ onGenerate, onProceed, commissionedSerials }: {
               <div className="mt-5">
                 <button onMouseDown={e => e.preventDefault()} onClick={handleGenerateSSCCs} disabled={ssccGenerating}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer border-0 disabled:opacity-60"
-                  style={{ background: "#8B1A1A" }}>
+                  style={{ background: COLOR }}>
                   {ssccGenerating ? `Generating… ${ssccCount.toLocaleString()}` : "Submit"}
                 </button>
               </div>
@@ -674,7 +729,7 @@ function LabelGenerationPhase({ onGenerate, onProceed, commissionedSerials }: {
               <button onMouseDown={e => e.preventDefault()}
                 onClick={() => onProceed(sscc18, serials)}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer border-0"
-                style={{ background: "#8B1A1A" }}>
+                style={{ background: COLOR }}>
                 Open Mobile App →
               </button>
             </div>
@@ -751,10 +806,196 @@ const WORKFLOW_STEPS: { id: WorkflowStep; label: string; icon: string; tip: stri
   { id: "verify",       label: "Verify Package",     icon: "✅", tip: "Scan the parent, then scan each child to confirm authenticity" },
 ];
 
+// ─── Track Dashboard ─────────────────────────────────────────────────────────
+
+interface TTooltipProps { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string; }
+function TTooltip({ active, payload, label }: TTooltipProps) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: "#0D1B2A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+      <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: 4, fontWeight: 600 }}>{label}</p>
+      {payload.map(p => (
+        <p key={p.name} style={{ color: p.color, margin: "2px 0", fontWeight: 700 }}>
+          {p.name}: {p.value.toLocaleString()}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function TrackDashboard() {
+  const [range, setRange] = useState<"7D" | "30D" | "90D">("7D");
+
+  return (
+    <div style={{ background: "white", borderRadius: 16, border: "1px solid #f3f4f6", overflow: "hidden" }}>
+
+      {/* Header */}
+      <div style={{ background: "#0D1B2A", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <motion.div animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 1.8, repeat: Infinity }}
+              style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
+            <span style={{ color: "white", fontWeight: 800, fontSize: 15 }}>Track™ Analytics</span>
+          </div>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>Live Supply Chain Intelligence</span>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {(["7D", "30D", "90D"] as const).map(r => (
+            <button key={r} onMouseDown={e => e.preventDefault()} onClick={() => setRange(r)}
+              style={{ padding: "4px 12px", borderRadius: 8, border: "1px solid", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.15s",
+                background: range === r ? COLOR : "transparent",
+                borderColor: range === r ? COLOR : "rgba(255,255,255,0.2)",
+                color: range === r ? "white" : "rgba(255,255,255,0.6)" }}>
+              {r}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "20px 24px" }}>
+
+        {/* KPI Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
+          {[
+            { label: "Serialized Products", value: "284,740", delta: "+18.2%", up: true,  icon: "📦" },
+            { label: "Scans Today",          value: "12,847",  delta: "+4.1%",  up: true,  icon: "📡" },
+            { label: "Completion Rate",       value: "96.3%",   delta: "+0.4%",  up: true,  icon: "✅" },
+            { label: "Exceptions",            value: "142",     delta: "↓8.4%",  up: true,  icon: "⚠️" },
+          ].map(({ label, value, delta, up, icon }) => (
+            <div key={label} style={{ background: "#fafafa", borderRadius: 12, padding: "16px 18px", border: "1px solid #f3f4f6" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontSize: 18 }}>{icon}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: up ? "#16a34a" : "#dc2626", background: up ? "#f0fdf4" : "#fef2f2", padding: "2px 6px", borderRadius: 9999 }}>{delta}</span>
+              </div>
+              <p style={{ fontSize: 22, fontWeight: 900, color: "#111", margin: 0, lineHeight: 1 }}>{value}</p>
+              <p style={{ fontSize: 11, color: "#9ca3af", margin: "4px 0 0", fontWeight: 600 }}>{label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Daily scan activity chart */}
+        <div style={{ marginBottom: 24 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.6 }}>Daily Scan Activity by Action Type</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={T_DAILY} barSize={20} barGap={2}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9ca3af" }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9ca3af" }} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
+              <Tooltip content={<TTooltip />} />
+              <Bar dataKey="commission" name="Commission" stackId="a" fill="#0D1B2A" />
+              <Bar dataKey="pack"       name="Pack"       stackId="a" fill={COLOR} />
+              <Bar dataKey="ship"       name="Ship"       stackId="a" fill="#ef4444" />
+              <Bar dataKey="receive"    name="Receive"    stackId="a" fill="#6b7280" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+            {[["#0D1B2A","Commission"],[COLOR,"Pack"],["#ef4444","Ship"],["#6b7280","Receive"]].map(([c, l]) => (
+              <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: c }} />
+                <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>{l}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Exception Hotspots Map */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: 0.6, margin: 0 }}>
+              Exception Hotspots — Geographic Distribution
+            </p>
+            <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600 }}>142 exceptions across 7 cities</span>
+          </div>
+          <NigeriaAnalyticsMap
+            pins={T_MAP_PINS}
+            legend={T_MAP_LEGEND}
+            height={310}
+            mapLabel="Serialization Mismatches"
+          />
+        </div>
+
+        {/* Bottom row: Funnel + Routes + Exceptions */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 1.2fr", gap: 16 }}>
+
+          {/* Step funnel */}
+          <div style={{ background: "#fafafa", borderRadius: 12, padding: 16, border: "1px solid #f3f4f6" }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#374151", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.6 }}>Step Funnel</p>
+            {T_FUNNEL.map((f, i) => (
+              <div key={f.step} style={{ marginBottom: i < T_FUNNEL.length - 1 ? 10 : 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{f.step}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: COLOR }}>{f.pct}%</span>
+                </div>
+                <div style={{ height: 6, background: "#f3f4f6", borderRadius: 9999, overflow: "hidden" }}>
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${f.pct}%` }}
+                    transition={{ delay: i * 0.1, duration: 0.7 }}
+                    style={{ height: "100%", background: `linear-gradient(90deg, #0D1B2A, ${COLOR})`, borderRadius: 9999 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Route performance */}
+          <div style={{ background: "#fafafa", borderRadius: 12, padding: 16, border: "1px solid #f3f4f6" }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#374151", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.6 }}>Top Routes</p>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {["Route","Scans","Exc."].map(h => (
+                    <th key={h} style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", textAlign: "left", paddingBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {T_ROUTES.map((r, i) => (
+                  <tr key={r.route} style={{ borderTop: i > 0 ? "1px solid #f3f4f6" : "none" }}>
+                    <td style={{ fontSize: 11, color: "#374151", fontWeight: 600, padding: "7px 0" }}>{r.route}</td>
+                    <td style={{ fontSize: 11, color: "#6b7280", fontVariantNumeric: "tabular-nums", padding: "7px 8px" }}>{r.scans.toLocaleString()}</td>
+                    <td style={{ padding: "7px 0" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700,
+                        color: r.exceptions > 15 ? "#dc2626" : "#d97706",
+                        background: r.exceptions > 15 ? "#fef2f2" : "#fffbeb",
+                        padding: "2px 6px", borderRadius: 9999 }}>
+                        {r.exceptions}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Recent exceptions */}
+          <div style={{ background: "#fafafa", borderRadius: 12, padding: 16, border: "1px solid #f3f4f6" }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#374151", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.6 }}>Recent Exceptions</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {T_EXCEPTIONS.map((ex, i) => {
+                const sevColor = ex.sev === "high" ? "#dc2626" : ex.sev === "med" ? "#d97706" : "#6b7280";
+                const sevBg    = ex.sev === "high" ? "#fef2f2" : ex.sev === "med" ? "#fffbeb" : "#f9fafb";
+                return (
+                  <div key={i} style={{ borderLeft: `3px solid ${sevColor}`, paddingLeft: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: sevColor, background: sevBg, padding: "1px 5px", borderRadius: 9999, textTransform: "uppercase" }}>{ex.sev}</span>
+                      <span style={{ fontSize: 9, color: "#9ca3af" }}>{ex.time}</span>
+                    </div>
+                    <p style={{ fontSize: 11, color: "#374151", fontWeight: 600, margin: 0, lineHeight: 1.3 }}>{ex.msg}</p>
+                    <p style={{ fontSize: 10, color: "#9ca3af", margin: "2px 0 0" }}>{ex.loc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TrackDemo() {
-  const [phase, setPhase]               = useState<"generate" | "app">("generate");
+  const [phase, setPhase]               = useState<"generate" | "app" | "map" | "analytics">("generate");
   const [generatedProduct, setGeneratedProduct] = useState<ProductData | null>(null);
   const [activeSscc, setActiveSscc]     = useState<string | undefined>(undefined);
   const [activeSerials, setActiveSerials] = useState<string[] | undefined>(undefined);
@@ -768,6 +1009,11 @@ export default function TrackDemo() {
   const [commissionedSerials, setCommissionedSerials] = useState<string[]>(
     () => lsLoad<string[]>(LS_COMM, [])
   );
+  const [shipDestination, setShipDestination]   = useState<string>("");
+  // Tracks serials commissioned in the current commission session (resets on re-entering commission)
+  const [commProgress, setCommProgress]         = useState<string[]>([]);
+  // Tracks how many children have been scanned in the current pack/dispense/verify session
+  const [childScanCount, setChildScanCount]     = useState(0);
 
   const activeProduct = generatedProduct || DEFAULT_PRODUCT;
 
@@ -781,6 +1027,7 @@ export default function TrackDemo() {
     setSsccScanned(false);
     setVrfParentScanned(false);
     setActiveScreen("home");
+    setShipDestination("");
     setPhase("app");
   };
 
@@ -799,19 +1046,52 @@ export default function TrackDemo() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="h-2" style={{ background: COLOR }} />
 
-      <div className="max-w-5xl mx-auto px-4 py-10 space-y-6">
+      {/* ── Page header ───────────────────────────────────────────────────────── */}
+      <div style={{ background: `linear-gradient(135deg, #7a0000 0%, ${COLOR} 60%, #d42020 100%)` }}>
+        <div className="max-w-5xl mx-auto px-4 py-7 flex items-center justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ color: "white", fontSize: 14 }}>🚚</span>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.75)", letterSpacing: 2, textTransform: "uppercase" }}>Sproxil Track™</span>
+            </div>
+            <h1 style={{ fontSize: 26, fontWeight: 900, color: "white", margin: 0, lineHeight: 1.15 }}>
+              Supply Chain Traceability
+            </h1>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", margin: "5px 0 0" }}>
+              Serialise, commission, pack and track pharmaceutical products end-to-end across the Nigerian supply chain.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 20, flexShrink: 0 }}>
+            {[["100%", "Visibility"], ["GS1", "Compliant"], ["Real-time", "Tracking"]].map(([top, bot]) => (
+              <div key={bot} style={{ textAlign: "center" }}>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: "white" }}>{top}</p>
+                <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>{bot}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
 
         {/* Phase stepper */}
         <div className="flex items-center bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {([
-            { id: "generate" as const, n: "1", label: "Generate Labels",  sub: "Create serialised SGTIN labels on the admin platform" },
-            { id: "app"      as const, n: "2", label: "Mobile App",       sub: "Commission, pack, ship, receive and verify on the device" },
+            { id: "generate"  as const, n: "1", label: "Generate Labels",  sub: "Create serialised SGTIN labels on the admin platform" },
+            { id: "app"       as const, n: "2", label: "Mobile App",       sub: "Commission, pack, ship, receive and verify on the device" },
+            { id: "map"       as const, n: "3", label: "Live Tracking",    sub: "See your product move through the supply chain in real time" },
+            { id: "analytics" as const, n: "4", label: "Analytics",        sub: "Supply chain KPIs, scan activity and exception monitoring" },
           ]).map(({ id, n, label, sub }, i) => {
             const active = phase === id;
-            const done = id === "generate" && phase === "app";
-            const locked = id === "app" && !generatedProduct;
+            const done = (id === "generate"  && (phase === "app" || phase === "map" || phase === "analytics")) ||
+                         (id === "app"       && (phase === "map" || phase === "analytics")) ||
+                         (id === "map"       &&  phase === "analytics");
+            const locked = (id === "app"       && !generatedProduct) ||
+                           (id === "map"       && completedSteps.size === 0) ||
+                           (id === "analytics" && completedSteps.size === 0);
             return (
               <button key={id} onMouseDown={e => e.preventDefault()}
                 onClick={() => { if (!locked) setPhase(id); }}
@@ -820,7 +1100,7 @@ export default function TrackDemo() {
                 style={{
                   background: active ? `${COLOR}08` : "white",
                   borderBottom: active ? `3px solid ${COLOR}` : "3px solid transparent",
-                  borderRight: i === 0 ? "1px solid #f3f4f6" : "none",
+                  borderRight: i < 3 ? "1px solid #f3f4f6" : "none",
                   opacity: locked ? 0.45 : 1,
                 }}>
                 <div style={{
@@ -837,7 +1117,9 @@ export default function TrackDemo() {
                   <p style={{ fontSize: 13, fontWeight: 800, color: active ? COLOR : done ? "#111" : "#6b7280", margin: 0 }}>{label}</p>
                   <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>{sub}</p>
                 </div>
-                {locked && <span style={{ marginLeft: "auto", fontSize: 10, color: "#9ca3af", fontWeight: 600 }}>Generate a label first</span>}
+                {id === "app"       && locked && !generatedProduct && <span style={{ marginLeft: "auto", fontSize: 10, color: "#9ca3af", fontWeight: 600 }}>Generate a label first</span>}
+                {id === "map"       && locked && <span style={{ marginLeft: "auto", fontSize: 10, color: "#9ca3af", fontWeight: 600 }}>Complete a step first</span>}
+                {id === "analytics" && locked && <span style={{ marginLeft: "auto", fontSize: 10, color: "#9ca3af", fontWeight: 600 }}>Complete a step first</span>}
               </button>
             );
           })}
@@ -869,11 +1151,20 @@ export default function TrackDemo() {
                       Tap any menu item in the phone to walk through the flow.
                     </p>
                   </div>
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => setPhase("generate")}
-                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border cursor-pointer flex-shrink-0 ml-4"
-                    style={{ borderColor: "#e5e7eb", color: "#6b7280", background: "white" }}>
-                    ← Admin
-                  </button>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                    <button onMouseDown={e => e.preventDefault()} onClick={() => setPhase("generate")}
+                      className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border cursor-pointer"
+                      style={{ borderColor: "#e5e7eb", color: "#6b7280", background: "white" }}>
+                      ← Admin
+                    </button>
+                    {completedSteps.size > 0 && (
+                      <button onMouseDown={e => e.preventDefault()} onClick={() => setPhase("map")}
+                        className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border cursor-pointer"
+                        style={{ borderColor: COLOR, color: COLOR, background: `${COLOR}08` }}>
+                        View Tracking Map →
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-8 items-start">
@@ -982,19 +1273,45 @@ export default function TrackDemo() {
                               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                                 {(() => {
                                   const allSerials = activeSerials ?? [activeProduct.serial];
-                                  // In pack scan-children phase: limit to packQty; otherwise show all
-                                  const visibleCount = (activeScreen === "pack" && ssccScanned && activePackQty > 0)
-                                    ? Math.min(activePackQty, allSerials.length)
-                                    : allSerials.length;
-                                  return allSerials.slice(0, visibleCount).map((serial, i) => {
+
+                                  const isCommission = activeScreen === "commission";
+                                  // Screens where children to scan must be commissioned labels
+                                  const needsCommissioned = ["pack", "dispense", "verify", "unpack", "view"].includes(activeScreen);
+
+                                  // Commission: show only uncommissioned (available to register)
+                                  // Pack/dispense/verify/unpack/view: show only commissioned (available to scan)
+                                  // Everything else: show all
+                                  const displaySerials = isCommission
+                                    ? allSerials.filter(s => !commissionedSerials.includes(s))
+                                    : needsCommissioned
+                                      ? allSerials.filter(s => commissionedSerials.includes(s))
+                                      : allSerials;
+
+                                  // Pack qty drives card count; commission shows up to 8; others default 3
+                                  const visibleCount = isCommission
+                                    ? Math.min(8, displaySerials.length)
+                                    : activePackQty > 0
+                                      ? Math.min(activePackQty, displaySerials.length)
+                                      : Math.min(3, displaySerials.length);
+
+                                  // Laser index — commission tracks commProgress, children screens track childScanCount
+                                  const commScanIdx = commProgress.length;
+                                  const isChildScreen = needsCommissioned && activeScreen !== "commission";
+
+                                  return displaySerials.slice(0, visibleCount).map((serial, i) => {
                                     const label = { ...activeProduct, serial };
+                                    const isScanning = isCommission
+                                      ? (scannerActive && i === commScanIdx)
+                                      : isChildScreen
+                                        ? (scannerActive && i === childScanCount)
+                                        : (scannerActive && i === 0);
                                     return (
                                       <div key={serial}>
                                         <p style={{ fontSize: 9, fontWeight: 600, color: "#9ca3af", marginBottom: 4 }}>Label {i + 1}</p>
                                         <ProductLabel
                                           product={label}
                                           qrValue={`(01)${toGtin14(label.gtin)}(21)${label.serial}`}
-                                          scanning={scannerActive && i === 0}
+                                          scanning={isScanning}
                                           compact
                                         />
                                       </div>
@@ -1012,20 +1329,31 @@ export default function TrackDemo() {
                     <div style={{ display: "flex", justifyContent: "center", paddingTop: 4 }}>
                       <ScannerDevice
                         scanning={scannerActive}
-                        lastScanned={lastScanResult || undefined}
+                        lastScanned={
+                          // Commission mode: show the last commissioned serial
+                          activeScreen === "commission" && commProgress.length > 0
+                            ? commProgress[commProgress.length - 1]
+                            : (lastScanResult || undefined)
+                        }
                         onScan={() => {
                           if (scannerActive) return;
                           setScannerActive(true);
                           setTimeout(() => {
                             simulateScan();
                             setScannerActive(false);
-                            // Derive what was just scanned for the LCD "done" state
-                            const SSCC_SCREENS = ["ship", "receive", "unpack", "view", "pack", "verify"];
-                            const isSSCC = SSCC_SCREENS.includes(activeScreen) && !ssccScanned && !vrfParentScanned;
-                            setLastScanResult(isSSCC
-                              ? (activeSscc ?? "")
-                              : (activeSerials?.[0] ?? activeProduct.serial)
-                            );
+                            // Skip when onCommissionProgress / onChildScan already set the right serial
+                            const isChildrenPhase =
+                              (activeScreen === "pack"    && ssccScanned) ||
+                              (activeScreen === "verify"  && vrfParentScanned) ||
+                               activeScreen === "dispense";
+                            if (activeScreen !== "commission" && !isChildrenPhase) {
+                              const SSCC_SCREENS = ["ship", "receive", "unpack", "view", "pack", "verify"];
+                              const isSSCC = SSCC_SCREENS.includes(activeScreen) && !ssccScanned && !vrfParentScanned;
+                              setLastScanResult(isSSCC
+                                ? (activeSscc ?? "")
+                                : (activeSerials?.[0] ?? activeProduct.serial)
+                              );
+                            }
                           }, 420);
                         }}
                       />
@@ -1048,15 +1376,23 @@ export default function TrackDemo() {
                       sscc={activeSscc}
                       serials={activeSerials}
                       onStepComplete={handleStepComplete}
-                      onPackParentScanned={() => setSsccScanned(true)}
+                      onPackParentScanned={() => { setSsccScanned(true); setChildScanCount(0); }}
                       onPackQtySet={qty => setActivePackQty(qty)}
-                      onVerifyParentScanned={() => setVrfParentScanned(true)}
+                      onVerifyParentScanned={() => { setVrfParentScanned(true); setChildScanCount(0); }}
                       onScreenChange={s => {
                         setActiveScreen(s);
+                        setChildScanCount(0);
+                        if (s === "commission") setCommProgress([]);
                         if (s !== "pack")   { setSsccScanned(false); setActivePackQty(0); }
                         if (s !== "verify") setVrfParentScanned(false);
                       }}
                       commissionedSerials={commissionedSerials}
+                      onShip={dest => setShipDestination(dest)}
+                      onCommissionProgress={commissioned => setCommProgress(commissioned)}
+                      onChildScan={serial => {
+                        setChildScanCount(c => c + 1);
+                        setLastScanResult(serial);
+                      }}
                       onCommission={serials => {
                         setCommissionedSerials(prev => {
                           const updated = [...new Set([...prev, ...serials])];
@@ -1073,6 +1409,59 @@ export default function TrackDemo() {
               </div>
             </motion.div>
           )}
+
+          {phase === "map" && (
+            <motion.div key="map" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                  <div>
+                    <h2 className="font-black text-gray-900 text-xl mb-1">Live Product Tracking</h2>
+                    <p className="text-sm text-gray-500">Watch your product move through the supply chain as you scan on the mobile app.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onMouseDown={e => e.preventDefault()} onClick={() => setPhase("app")}
+                      className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border cursor-pointer flex-shrink-0"
+                      style={{ borderColor: "#e5e7eb", color: "#6b7280", background: "white" }}>
+                      ← Mobile App
+                    </button>
+                    <button onMouseDown={e => e.preventDefault()} onClick={() => setPhase("analytics")}
+                      className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border cursor-pointer flex-shrink-0"
+                      style={{ borderColor: COLOR, color: COLOR, background: `${COLOR}08` }}>
+                      View Analytics →
+                    </button>
+                  </div>
+                </div>
+                <TrackMapPhase
+                  completedSteps={completedSteps}
+                  sscc={activeSscc}
+                  productName={activeProduct.name}
+                  batchLot={activeProduct.batch}
+                  shipDestination={shipDestination}
+                />
+              </div>
+            </motion.div>
+          )}
+          {phase === "analytics" && (
+            <motion.div key="analytics" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+              <div className="space-y-4">
+                {/* Sub-header */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="font-black text-gray-900 text-xl mb-1">Track™ Analytics Dashboard</h2>
+                    <p className="text-sm text-gray-500">Real-time supply chain intelligence — serialization throughput, step completion funnel, route performance and exception monitoring.</p>
+                  </div>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => setPhase("map")}
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border cursor-pointer flex-shrink-0 ml-4"
+                    style={{ borderColor: "#e5e7eb", color: "#6b7280", background: "white" }}>
+                    ← Live Map
+                  </button>
+                </div>
+
+                <TrackDashboard />
+              </div>
+            </motion.div>
+          )}
+
         </AnimatePresence>
 
       </div>
