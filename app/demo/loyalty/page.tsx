@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import ScratchCard from "@/components/ScratchCard";
 import LoyaltyPhoneEmulator, { LoyaltyResult } from "@/components/LoyaltyPhoneEmulator";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const COLOR = "#BE0303";
 const CODE  = "LYL-4821-MNVX";
@@ -15,6 +16,184 @@ const RETAILERS = [
   { name: "Ngozi Adaeze",  initials: "NA", location: "Onitsha, Anambra",  basePoints: 2100, cartons: 14, tier: "Gold",   streak: "8 weeks", toGold: 2500 },
   { name: "Tunde Bakare",  initials: "TB", location: "Lagos Island",       basePoints:  450, cartons: 3,  tier: "Bronze", streak: "2 weeks", toGold: 1500 },
 ];
+
+/* ─── Loyalty Analytics Dashboard ──────────────────────────────────────── */
+
+const L_GROWTH = [
+  { week: "W1", retailers: 4200 },
+  { week: "W2", retailers: 4890 },
+  { week: "W3", retailers: 5340 },
+  { week: "W4", retailers: 5980 },
+  { week: "W5", retailers: 6540 },
+  { week: "W6", retailers: 7120 },
+  { week: "W7", retailers: 7830 },
+  { week: "W8", retailers: 8432 },
+];
+const L_STATES = [
+  { state: "Lagos",    retailers: 2340, pointsM: 0.62 },
+  { state: "Abuja",   retailers: 1120, pointsM: 0.29 },
+  { state: "Kano",    retailers:  980, pointsM: 0.24 },
+  { state: "Aba",     retailers:  870, pointsM: 0.21 },
+  { state: "Enugu",   retailers:  640, pointsM: 0.16 },
+];
+const L_TIERS = [
+  { tier: "Bronze", count: 4890, color: "#b45309", pct: 58 },
+  { tier: "Silver", count: 2614, color: "#6b7280", pct: 31 },
+  { tier: "Gold",   count:  928, color: "#BE0303", pct: 11 },
+];
+const L_REDEMPTIONS = [
+  { day: "Mon", airtime: 312, points: 89 },
+  { day: "Tue", airtime: 289, points: 102 },
+  { day: "Wed", airtime: 421, points: 134 },
+  { day: "Thu", airtime: 378, points: 118 },
+  { day: "Fri", airtime: 512, points: 167 },
+  { day: "Sat", airtime: 445, points: 142 },
+  { day: "Sun", airtime: 390, points: 124 },
+];
+
+function LTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: "#0D1B2A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "8px 12px" }}>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "white" }}>{label}: {payload[0].value.toLocaleString()} retailers</p>
+    </div>
+  );
+}
+function LRedTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: "#0D1B2A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "8px 12px" }}>
+      <p style={{ margin: "0 0 4px", fontSize: 10, color: "#9ca3af", fontWeight: 700 }}>{label}</p>
+      {payload.map(p => (
+        <p key={p.name} style={{ margin: "2px 0", fontSize: 11, fontWeight: 700, color: p.color }}>
+          {p.name === "airtime" ? "💰 Airtime redeemed" : "⭐ Point redeems"}: {p.value}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function LoyaltyAnalyticsDashboard() {
+  const COLOR = "#BE0303";
+  const kpis = [
+    { label: "Active Retailers", value: "8,432",  delta: "+14.8%", icon: "🏪", up: true },
+    { label: "Points Issued",    value: "2.1M",   delta: "+22.3%", icon: "⭐", up: true },
+    { label: "Rewards Claimed",  value: "1,847",  delta: "+18.9%", icon: "🎁", up: true },
+    { label: "States Covered",   value: "28",     delta: "+2",     icon: "🗺", up: true },
+  ];
+  return (
+    <div style={{ background: "white", borderRadius: 16, border: "1px solid #f3f4f6", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ background: "#0D1B2A", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+            <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 1.8 }}
+              style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", letterSpacing: 1.5, textTransform: "uppercase" as const }}>Live Dashboard</span>
+          </div>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "white" }}>Loyalty Analytics</h2>
+          <p style={{ margin: "3px 0 0", fontSize: 11, color: "#4b5563" }}>Sproxil Loyalty™ · All retailers · Last 8 weeks</p>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {["8W","3M","1Y"].map((r, i) => (
+            <button key={r} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.12)", background: i === 0 ? COLOR : "rgba(255,255,255,0.05)", color: i === 0 ? "white" : "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>{r}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "20px 24px" }}>
+        {/* KPIs */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+          {kpis.map(k => (
+            <div key={k.label} style={{ background: "#f9fafb", borderRadius: 12, padding: "14px 16px", border: "1px solid #f3f4f6" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontSize: 20 }}>{k.icon}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", background: "#f0fdf4", padding: "2px 7px", borderRadius: 9999 }}>{k.delta}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: COLOR }}>{k.value}</p>
+              <p style={{ margin: "3px 0 0", fontSize: 10, color: "#9ca3af", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 0.5 }}>{k.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Charts row */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+          {/* Enrollment growth */}
+          <div>
+            <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 800, color: "#374151", textTransform: "uppercase" as const, letterSpacing: 0.5 }}>Retailer Enrollment Growth</p>
+            <ResponsiveContainer width="100%" height={160}>
+              <LineChart data={L_GROWTH} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                <XAxis dataKey="week" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={44} tickFormatter={(v: number) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v)} />
+                <Tooltip content={<LTooltip />} />
+                <Line type="monotone" dataKey="retailers" stroke={COLOR} strokeWidth={3} dot={{ fill: COLOR, r: 4, strokeWidth: 0 }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Daily redemptions */}
+          <div>
+            <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 800, color: "#374151", textTransform: "uppercase" as const, letterSpacing: 0.5 }}>Daily Redemptions This Week</p>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={L_REDEMPTIONS} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} barSize={16}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={32} />
+                <Tooltip content={<LRedTooltip />} />
+                <Bar dataKey="airtime" fill={COLOR}    stackId="a" radius={[0,0,0,0]} />
+                <Bar dataKey="points"  fill="#f59e0b"  stackId="a" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Tier distribution + states */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {/* Tier distribution */}
+          <div style={{ background: "#f9fafb", borderRadius: 12, padding: "16px 18px", border: "1px solid #f3f4f6" }}>
+            <p style={{ margin: "0 0 14px", fontSize: 11, fontWeight: 800, color: "#374151", textTransform: "uppercase" as const, letterSpacing: 0.5 }}>Tier Distribution</p>
+            {L_TIERS.map(t => (
+              <div key={t.tier} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, background: `${t.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 16 }}>{t.tier === "Gold" ? "🥇" : t.tier === "Silver" ? "🥈" : "🥉"}</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{t.tier}</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: t.color }}>{t.count.toLocaleString()} retailers · {t.pct}%</span>
+                  </div>
+                  <div style={{ height: 6, background: "#e5e7eb", borderRadius: 9999, overflow: "hidden" }}>
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${t.pct}%` }} transition={{ duration: 0.9, delay: 0.2 }}
+                      style={{ height: "100%", background: t.color, borderRadius: 9999 }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* State coverage */}
+          <div style={{ background: "#f9fafb", borderRadius: 12, padding: "16px 18px", border: "1px solid #f3f4f6" }}>
+            <p style={{ margin: "0 0 12px", fontSize: 11, fontWeight: 800, color: "#374151", textTransform: "uppercase" as const, letterSpacing: 0.5 }}>Top States by Coverage</p>
+            {L_STATES.map((s, i) => (
+              <div key={s.state} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 10, fontWeight: 800, color: "#9ca3af", width: 14 }}>{i + 1}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", flex: 1 }}>{s.state}</span>
+                <div style={{ textAlign: "right" }}>
+                  <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: COLOR }}>{s.retailers.toLocaleString()}</p>
+                  <p style={{ margin: 0, fontSize: 9, color: "#9ca3af" }}>{s.pointsM}M pts</p>
+                </div>
+              </div>
+            ))}
+            <div style={{ marginTop: 8, padding: "8px 10px", background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+              <p style={{ margin: 0, fontSize: 10, color: "#6b7280" }}>Total states covered: <strong style={{ color: COLOR }}>28 / 36</strong></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function LoyaltyDemo() {
   const [scratched, setScratched] = useState(false);
@@ -183,6 +362,8 @@ export default function LoyaltyDemo() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <LoyaltyAnalyticsDashboard />
 
         {/* ── Trade Partner Dashboard ───────────────────────────────────────── */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
